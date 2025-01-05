@@ -97,9 +97,9 @@ fn generate_jwt(
   let expiration = now + expiry_duration;
 
   let claims = Claims {
-    id: user.id.clone(),
+    id: user.id,
     sub: user.user_name.clone(),
-    iat: now.clone(),
+    iat: *now,
     exp: expiration,
   };
 
