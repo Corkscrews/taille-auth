@@ -8,7 +8,7 @@ use dto::create_user_dto::CreateUserDTO;
 use validator::Validate;
 
 use crate::shared::model::user::User;
-use crate::shared::user_repository::UserRepository;
+use crate::shared::repository::user_repository::UserRepository;
 use crate::AppState;
 
 // #[post("login")]
@@ -46,12 +46,13 @@ fn user_already_exists() -> HttpResponse {
 }
 
 impl From<CreateUserDTO> for User {
-  fn from(value: CreateUserDTO) -> Self {
-    let password_hash = hash(value.password, DEFAULT_COST).unwrap();
+  fn from(dto: CreateUserDTO) -> Self {
+    let password_hash = hash(dto.password, DEFAULT_COST).unwrap();
     Self {
       id: 123,
-      user_name: value.user_name,
+      user_name: dto.user_name,
       password: password_hash,
+      role: dto.role,
     }
   }
 }

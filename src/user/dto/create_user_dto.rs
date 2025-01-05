@@ -1,6 +1,8 @@
 use serde::Deserialize;
 use validator_derive::Validate;
 
+use crate::shared::role::Role;
+
 #[derive(Debug, Deserialize, Validate)]
 pub struct CreateUserDTO {
   #[validate(length(
@@ -14,4 +16,5 @@ pub struct CreateUserDTO {
     message = "Password must have at least 1 characters"
   ))]
   pub password: String,
+  pub role: Role,
 }

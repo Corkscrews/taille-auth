@@ -2,9 +2,7 @@ use actix_web::{dev::ServiceRequest, error, web, Error};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
 use subtle::ConstantTimeEq;
 
-use crate::AppState;
-
-use super::user_repository::UserRepository;
+use crate::{shared::repository::user_repository::UserRepository, AppState};
 
 /// Validator that:
 /// - accepts Bearer auth;

@@ -12,8 +12,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use validator::Validate;
 
-use crate::shared::model::user::User;
-use crate::shared::user_repository::UserRepository;
+use crate::shared::repository::user_repository::UserRepository;
+use crate::shared::role::Role;
 use crate::AppState;
 
 mod dto;
@@ -21,12 +21,19 @@ mod rto;
 
 const ACCESS_TOKEN_EXPIRY: u64 = 15 * 60; // 15 minutes in seconds
 const REFRESH_TOKEN_EXPIRY: u64 = 7 * 24 * 60 * 60; // 7 days in seconds
-const SECRET: &str = "your_secret_key"; // Replace with your secure key
 
 #[derive(Serialize, Deserialize)]
-struct Claims {
+struct AccessTokenClaims {
   id: u32,
+  role: Role,
   sub: String,
+  iat: u64,
+  exp: u64,
+}
+
+#[derive(Serialize, Deserialize)]
+struct RefreshTokenClaims {
+  id: u32,
   iat: u64,
   exp: u64,
 }
@@ -72,8 +79,24 @@ pub async fn auth_login<UR: UserRepository>(
     .as_secs();
 
   // Generate tokens
-  let access_token = generate_jwt(&now, &user, ACCESS_TOKEN_EXPIRY);
-  let refresh_token = generate_jwt(&now, &user, REFRESH_TOKEN_EXPIRY);
+  let access_token = generate_jwt(
+    &data,
+    AccessTokenClaims {
+      id: user.id,
+      role: user.role,
+      sub: user.user_name.clone(),
+      iat: now,
+      exp: now + ACCESS_TOKEN_EXPIRY,
+    },
+  );
+  let refresh_token = generate_jwt(
+    &data,
+    RefreshTokenClaims {
+      id: user.id,
+      iat: now,
+      exp: now + REFRESH_TOKEN_EXPIRY,
+    },
+  );
 
   if access_token.is_err() || refresh_token.is_err() {
     return HttpResponse::InternalServerError().finish();
@@ -89,24 +112,14 @@ pub async fn auth_login<UR: UserRepository>(
     .json(tokens)
 }
 
-fn generate_jwt(
-  now: &u64,
-  user: &User,
-  expiry_duration: u64,
+fn generate_jwt<T: Serialize, UR: UserRepository>(
+  data: &web::Data<AppState<UR>>,
+  claims: T,
 ) -> Result<String, jsonwebtoken::errors::Error> {
-  let expiration = now + expiry_duration;
-
-  let claims = Claims {
-    id: user.id,
-    sub: user.user_name.clone(),
-    iat: *now,
-    exp: expiration,
-  };
-
   encode(
     &Header::new(Algorithm::HS256),
     &claims,
-    &EncodingKey::from_secret(SECRET.as_ref()),
+    &EncodingKey::from_secret(data.config.jwt_secret.as_ref()),
   )
 }
 

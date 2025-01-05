@@ -1,6 +1,6 @@
 use std::sync::RwLock;
 
-use super::model::user::User;
+use crate::shared::model::user::User;
 
 pub trait UserRepository {
   async fn find_one(&self, username: &str) -> Option<User>;
