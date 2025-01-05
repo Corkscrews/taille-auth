@@ -24,7 +24,7 @@ const REFRESH_TOKEN_EXPIRY: u64 = 7 * 24 * 60 * 60; // 7 days in seconds
 
 #[derive(Serialize, Deserialize)]
 struct AccessTokenClaims {
-  id: u32,
+  uuid: String,
   role: Role,
   sub: String,
   iat: u64,
@@ -33,7 +33,7 @@ struct AccessTokenClaims {
 
 #[derive(Serialize, Deserialize)]
 struct RefreshTokenClaims {
-  id: u32,
+  uuid: String,
   iat: u64,
   exp: u64,
 }
@@ -82,7 +82,7 @@ pub async fn auth_login<UR: UserRepository>(
   let access_token = generate_jwt(
     &data,
     AccessTokenClaims {
-      id: user.id,
+      uuid: user.uuid.clone(),
       role: user.role,
       sub: user.user_name.clone(),
       iat: now,
@@ -92,7 +92,7 @@ pub async fn auth_login<UR: UserRepository>(
   let refresh_token = generate_jwt(
     &data,
     RefreshTokenClaims {
-      id: user.id,
+      uuid: user.uuid.clone(),
       iat: now,
       exp: now + REFRESH_TOKEN_EXPIRY,
     },

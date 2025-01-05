@@ -6,6 +6,7 @@ use bcrypt::hash;
 use bcrypt::DEFAULT_COST;
 use dto::create_user_dto::CreateUserDTO;
 use validator::Validate;
+use nanoid::nanoid;
 
 use crate::shared::model::user::User;
 use crate::shared::repository::user_repository::UserRepository;
@@ -35,7 +36,7 @@ pub async fn create_user<UR: UserRepository>(
 
   HttpResponse::Created()
     .content_type("application/json")
-    .append_header((header::LOCATION, format!("/v1/users/{}", user.id)))
+    .append_header((header::LOCATION, format!("/v1/users/{}", user.uuid)))
     .body(r#"{"message": "Resource created"}"#)
 }
 
@@ -49,7 +50,7 @@ impl From<CreateUserDTO> for User {
   fn from(dto: CreateUserDTO) -> Self {
     let password_hash = hash(dto.password, DEFAULT_COST).unwrap();
     Self {
-      id: 123,
+      uuid: nanoid!(),
       user_name: dto.user_name,
       password: password_hash,
       role: dto.role,
