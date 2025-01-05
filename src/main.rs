@@ -1,7 +1,7 @@
 mod auth;
 mod config;
 mod shared;
-mod user;
+mod users;
 
 use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{web, App, HttpServer};
@@ -12,7 +12,7 @@ use shared::{
   middleware::master_key_middleware::bearer_validator,
   repository::user_repository::{UserRepository, UserRepositoryImpl},
 };
-use user::create_user;
+use users::create_user;
 
 // This struct represents state
 struct AppState<UR: UserRepository> {
@@ -54,7 +54,7 @@ fn config(config: &mut web::ServiceConfig) {
             .route("login", web::post().to(auth_login::<UserRepositoryImpl>)),
         )
         .service(
-          web::scope("/user")
+          web::scope("/users")
             .wrap(HttpAuthentication::with_fn(
               bearer_validator::<UserRepositoryImpl>,
             ))
@@ -83,7 +83,7 @@ mod tests {
 
     // 1) Create user
     let create_req = test::TestRequest::post()
-      .uri("/v1/user")
+      .uri("/v1/users")
       .peer_addr(SocketAddr::from_str("127.0.0.1:12345").unwrap())
       .append_header((
         actix_web::http::header::AUTHORIZATION,
