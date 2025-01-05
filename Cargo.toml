@@ -13,3 +13,12 @@ validator_derive = "0.16"    # for the `#[derive(Validate)]` macro
 # For hashing with Bcrypt
 bcrypt = "0.14"
 jsonwebtoken = "9.3.0"
+actix-web-lab = "0.23.0"
+actix-governor = "0.8.0"
+actix-web-httpauth = "0.8.2"
+subtle = "2.6.1"
+
+[dev-dependencies]
+actix-rt = "2.10.0"
+once_cell = "1.20.2"
+reqwest = { version = "0.12.12", features = ["json"] }
