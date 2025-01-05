@@ -1,0 +1,4 @@
+# Use 2 spaces for indentation
+# indent_style = "block"
+tab_spaces = 2
+max_width = 80

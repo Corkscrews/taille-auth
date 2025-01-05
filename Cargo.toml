@@ -1,0 +1,15 @@
+[package]
+name = "taille-auth"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+validator = "0.16"
+validator_derive = "0.16"    # for the `#[derive(Validate)]` macro
+
+# For hashing with Bcrypt
+bcrypt = "0.14"
+jsonwebtoken = "9.3.0"
