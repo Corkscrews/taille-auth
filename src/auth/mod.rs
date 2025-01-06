@@ -58,9 +58,8 @@ pub async fn auth_login<UR: UserRepository>(
   // TODO: This solution below is vulnerable to time based attacks, transform the login
   // process into a time constant solution to prevent those issues.
   // Call `find_one` with `await` on the repository instance
-  let user = data.user_repository.find_one(&payload.username).await;
-
-  if user.is_none() {
+  let user = data.user_repository.find_one(&payload.email).await;
+  if user.is_err() {
     return unauthorized();
   }
   let user = user.unwrap();

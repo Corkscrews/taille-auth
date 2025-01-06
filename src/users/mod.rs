@@ -28,16 +28,25 @@ pub async fn create_user<UR: UserRepository>(
   // Call `find_one` with `await` on the repository instance
   let user = data.user_repository.find_one(&payload.user_name).await;
 
-  if user.is_some() {
+  if user.is_ok() {
     return user_already_exists();
   }
 
-  let user = data.user_repository.create(User::from(payload.0)).await;
+  let user = User::from(payload.0);
 
-  HttpResponse::Created()
-    .content_type("application/json")
-    .append_header((header::LOCATION, format!("/v1/users/{}", user.uuid)))
-    .body(r#"{"message": "Resource created"}"#)
+  data
+    .user_repository
+    .create(user.clone())
+    .await
+    .map(|_| {
+      HttpResponse::Created()
+        .content_type("application/json")
+        .append_header((header::LOCATION, format!("/v1/users/{}", user.uuid)))
+        .body(r#"{"message": "Resource created"}"#)
+    }).unwrap_or_else(|error| {
+      println!("{}", error);
+      HttpResponse::InternalServerError().finish()
+    })
 }
 
 fn user_already_exists() -> HttpResponse {
@@ -51,6 +60,7 @@ impl From<CreateUserDTO> for User {
     let password_hash = hash(dto.password, DEFAULT_COST).unwrap();
     Self {
       uuid: nanoid!(),
+      email: dto.email,
       user_name: dto.user_name,
       password: password_hash,
       role: dto.role,

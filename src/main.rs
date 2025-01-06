@@ -1,16 +1,15 @@
 mod auth;
-mod config;
 mod shared;
 mod users;
+
+use std::sync::Arc;
 
 use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{web, App, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
 use auth::auth_login;
-use config::Config;
 use shared::{
-  middleware::master_key_middleware::bearer_validator,
-  repository::user_repository::{UserRepository, UserRepositoryImpl},
+  config::Config, database::Database, middleware::master_key_middleware::bearer_validator, repository::user_repository::{UserRepository, UserRepositoryImpl}
 };
 use users::create_user;
 
@@ -24,14 +23,23 @@ struct AppState<UR: UserRepository> {
 async fn main() -> std::io::Result<()> {
   let server_address = "127.0.0.1:3000";
   println!("Listening on http://{}", server_address);
-  HttpServer::new(|| App::new().configure(config))
+  let database = Database::new().await;
+  let database = Arc::new(database);
+  HttpServer::new(move || {
+    App::new().configure(|cfg| {
+      config(cfg, UserRepositoryImpl::new(database.clone()))
+    })
+  })
     .bind(server_address)?
     .run()
     .await
 }
 
 // Function to initialize the App
-fn config(config: &mut web::ServiceConfig) {
+fn config<UR: UserRepository + 'static>(
+  config: &mut web::ServiceConfig,
+  user_repository: UR
+) {
   // Rate limit
   // Allow bursts with up to five requests per IP address
   // and replenishes two elements per second
@@ -43,7 +51,7 @@ fn config(config: &mut web::ServiceConfig) {
 
   config
     .app_data(web::Data::new(AppState {
-      user_repository: UserRepositoryImpl::new(),
+      user_repository,
       config: Config::default(),
     }))
     .service(
@@ -51,14 +59,12 @@ fn config(config: &mut web::ServiceConfig) {
         .service(
           web::scope("/auth")
             .wrap(Governor::new(&governor_config))
-            .route("login", web::post().to(auth_login::<UserRepositoryImpl>)),
+            .route("login", web::post().to(auth_login::<UR>)),
         )
         .service(
           web::scope("/users")
-            .wrap(HttpAuthentication::with_fn(
-              bearer_validator::<UserRepositoryImpl>,
-            ))
-            .route("", web::post().to(create_user::<UserRepositoryImpl>)),
+            .wrap(HttpAuthentication::with_fn(bearer_validator::<UR>))
+            .route("", web::post().to(create_user::<UR>)),
         ),
     );
 }
@@ -67,6 +73,7 @@ fn config(config: &mut web::ServiceConfig) {
 mod tests {
   use super::*;
   use actix_web::{http::header::HeaderValue, test, App};
+use shared::repository::user_repository::tests::UserRepositoryMock;
   use std::{env, net::SocketAddr, str::FromStr};
 
   #[actix_rt::test]
@@ -77,7 +84,7 @@ mod tests {
 
     // Initialize the service in-memory
     let app = test::init_service(
-      App::new().configure(config), // your config function
+      App::new().configure(|cfg| config(cfg, UserRepositoryMock::new())), // your config function
     )
     .await;
 
@@ -94,9 +101,10 @@ mod tests {
         HeaderValue::from_static("application/json"),
       ))
       .set_json(serde_json::json!({
-          "userName": "testuser",
-          "password": "testpassword",
-          "role": "driver"
+        "email": "test@taille.ie",
+        "userName": "testuser",
+        "password": "testpassword",
+        "role": "driver"
       }))
       .to_request();
 
@@ -113,7 +121,7 @@ mod tests {
         HeaderValue::from_static("application/json"),
       ))
       .set_json(serde_json::json!({
-          "userName": "testuser",
+          "email": "test@taille.ie",
           "password": "testpassword"
       }))
       .to_request();

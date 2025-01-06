@@ -8,7 +8,8 @@ Welcome to **Taille-Auth**, the initial server responsible for allowing Irish ta
 - **Tech Stack**:  
   - [Rust](https://www.rust-lang.org/)  
   - [Actix-Web](https://actix.rs/)  
-- **Database**: Not yet integrated (subject to change in future versions).  
+- **Database**:
+  - [DynamoDB](https://aws.amazon.com/pm/dynamodb/)  
 - **Open Source**: The project remains open source to encourage community collaboration and transparency.
 
 ## Auth Flow
@@ -46,7 +47,7 @@ This project is still in the early stages:
   cargo run
   ```
 
-4. **Run tests
+4. **Run tests**
   ```bash
   cargo test
   ```

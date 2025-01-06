@@ -1,0 +1,69 @@
+name: Rust Test and Coverage
+
+on:
+  push:
+    branches:
+      - master
+      - development
+  pull_request:
+
+jobs:
+  test:
+    name: Run Tests and Generate Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (Linux only)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Cache Cargo llvm-cov installation
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/bin/cargo-llvm-cov
+          key: ${{ runner.os }}-cargo-llvm-cov
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+
+      - name: Install llvm-tools and cargo-llvm-cov
+        run: |
+          rustup component add llvm-tools-preview
+          if ! command -v cargo-llvm-cov &> /dev/null; then
+            cargo install cargo-llvm-cov
+          fi
+
+      - name: Run Tests with Coverage
+        run: |
+          cargo llvm-cov --all-features --ignore-filename-regex ".cargo|tests|target" --lcov --output-path lcov.info
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: lcov.info
+
+      - name: Generate HTML Coverage Report
+        run: |
+          sudo apt-get update && sudo apt-get install -y lcov
+          genhtml -o coverage lcov.info
+
+      - name: Upload HTML Coverage Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-html
+          path: coverage/

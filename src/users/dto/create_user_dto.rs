@@ -9,6 +9,8 @@ pub struct CreateUserDTO {
     min = 1,
     message = "UserName must have at least 1 characters"
   ))]
+  #[validate(email)]
+  pub email: String,
   #[serde(rename = "userName")]
   pub user_name: String,
   #[validate(length(

@@ -5,13 +5,12 @@ use validator_derive::Validate;
 pub struct LoginDTO {
   #[validate(length(
     min = 1,
-    message = "UserName must have at least 1 characters"
+    message = "email must have at least 1 characters"
   ))]
-  #[serde(rename = "userName")]
-  pub username: String,
+  pub email: String,
   #[validate(length(
     min = 1,
-    message = "Password must have at least 1 characters"
+    message = "password must have at least 1 characters"
   ))]
   pub password: String,
 }

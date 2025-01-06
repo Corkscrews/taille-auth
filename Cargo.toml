@@ -8,9 +8,7 @@ actix-web = "4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 validator = "0.16"
-validator_derive = "0.16"    # for the `#[derive(Validate)]` macro
-
-# For hashing with Bcrypt
+validator_derive = "0.16"
 bcrypt = "0.14"
 jsonwebtoken = "9.3.0"
 actix-web-lab = "0.23.0"
@@ -18,6 +16,10 @@ actix-governor = "0.8.0"
 actix-web-httpauth = "0.8.2"
 subtle = "2.6.1"
 nanoid = "0.4.0"
+thiserror = "2.0.9"
+aws-config = { version = "1.5.13", features = ["behavior-version-latest"] }
+aws-sdk-dynamodb = "1.58.0"
+serde_dynamo = { version = "4.2.14", features = ["aws-sdk-dynamodb+1"] }
 
 [dev-dependencies]
 actix-rt = "2.10.0"
