@@ -5,8 +5,8 @@ use actix_web::{web, HttpResponse, Responder};
 use bcrypt::hash;
 use bcrypt::DEFAULT_COST;
 use dto::create_user_dto::CreateUserDTO;
-use validator::Validate;
 use nanoid::nanoid;
+use validator::Validate;
 
 use crate::shared::model::user::User;
 use crate::shared::repository::user_repository::UserRepository;
@@ -43,7 +43,8 @@ pub async fn create_user<UR: UserRepository>(
         .content_type("application/json")
         .append_header((header::LOCATION, format!("/v1/users/{}", user.uuid)))
         .body(r#"{"message": "Resource created"}"#)
-    }).unwrap_or_else(|error| {
+    })
+    .unwrap_or_else(|error| {
       println!("{}", error);
       HttpResponse::InternalServerError().finish()
     })

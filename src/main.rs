@@ -9,7 +9,10 @@ use actix_web::{web, App, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
 use auth::auth_login;
 use shared::{
-  config::Config, database::Database, middleware::master_key_middleware::bearer_validator, repository::user_repository::{UserRepository, UserRepositoryImpl}
+  config::Config,
+  database::Database,
+  middleware::master_key_middleware::bearer_validator,
+  repository::user_repository::{UserRepository, UserRepositoryImpl},
 };
 use users::create_user;
 
@@ -26,19 +29,18 @@ async fn main() -> std::io::Result<()> {
   let database = Database::new().await;
   let database = Arc::new(database);
   HttpServer::new(move || {
-    App::new().configure(|cfg| {
-      config(cfg, UserRepositoryImpl::new(database.clone()))
-    })
+    App::new()
+      .configure(|cfg| config(cfg, UserRepositoryImpl::new(database.clone())))
   })
-    .bind(server_address)?
-    .run()
-    .await
+  .bind(server_address)?
+  .run()
+  .await
 }
 
 // Function to initialize the App
 fn config<UR: UserRepository + 'static>(
   config: &mut web::ServiceConfig,
-  user_repository: UR
+  user_repository: UR,
 ) {
   // Rate limit
   // Allow bursts with up to five requests per IP address
@@ -73,7 +75,7 @@ fn config<UR: UserRepository + 'static>(
 mod tests {
   use super::*;
   use actix_web::{http::header::HeaderValue, test, App};
-use shared::repository::user_repository::tests::UserRepositoryMock;
+  use shared::repository::user_repository::tests::UserRepositoryMock;
   use std::{env, net::SocketAddr, str::FromStr};
 
   #[actix_rt::test]
