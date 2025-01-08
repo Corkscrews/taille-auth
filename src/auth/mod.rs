@@ -1,23 +1,30 @@
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
+use actix_web::HttpRequest;
 use actix_web::{web, HttpResponse, Responder};
 use bcrypt::verify;
 use dto::login_dto::LoginDTO;
+use jsonwebtoken::decode;
 use jsonwebtoken::encode;
 use jsonwebtoken::Algorithm;
+use jsonwebtoken::DecodingKey;
 use jsonwebtoken::EncodingKey;
 use jsonwebtoken::Header;
+use jsonwebtoken::Validation;
+use rto::login_rto::LoginRTO;
 use serde::Deserialize;
 use serde::Serialize;
 use validator::Validate;
 
+use crate::shared::model::user::User;
+use crate::shared::repository::user_repository::FindOneProperty;
 use crate::shared::repository::user_repository::UserRepository;
 use crate::shared::role::Role;
 use crate::AppState;
 
-mod dto;
-mod rto;
+pub mod dto;
+pub mod rto;
 
 const ACCESS_TOKEN_EXPIRY: u64 = 15 * 60; // 15 minutes in seconds
 const REFRESH_TOKEN_EXPIRY: u64 = 7 * 24 * 60 * 60; // 7 days in seconds
@@ -38,13 +45,6 @@ struct RefreshTokenClaims {
   exp: u64,
 }
 
-#[derive(Serialize)]
-struct TokenResponse {
-  access_token: String,
-  refresh_token: String,
-}
-
-// #[post("login")]
 pub async fn auth_login<UR: UserRepository>(
   data: web::Data<AppState<UR>>,
   payload: web::Json<LoginDTO>,
@@ -58,7 +58,10 @@ pub async fn auth_login<UR: UserRepository>(
   // TODO: This solution below is vulnerable to time based attacks, transform the login
   // process into a time constant solution to prevent those issues.
   // Call `find_one` with `await` on the repository instance
-  let user = data.user_repository.find_one(&payload.email).await;
+  let user = data
+    .user_repository
+    .find_one(FindOneProperty::Email(&payload.email))
+    .await;
   if user.is_err() {
     return unauthorized();
   }
@@ -72,6 +75,74 @@ pub async fn auth_login<UR: UserRepository>(
     return unauthorized();
   }
 
+  generate_token_response(data, user)
+}
+
+pub async fn access_token<UR: UserRepository + 'static>(
+  data: web::Data<AppState<UR>>,
+  request: HttpRequest,
+) -> impl Responder {
+  let refresh_token_claims = decode_refresh_token(&data, request).await;
+  if refresh_token_claims.is_none() {
+    return unauthorized();
+  }
+  let refresh_token_claims = refresh_token_claims.unwrap();
+
+  let user = data
+    .user_repository
+    .find_one(FindOneProperty::Uuid(&refresh_token_claims.uuid))
+    .await;
+  if user.is_err() {
+    return unauthorized();
+  }
+  let user = user.unwrap();
+
+  generate_token_response(data, user)
+}
+
+async fn decode_refresh_token<UR: UserRepository + 'static>(
+  data: &web::Data<AppState<UR>>,
+  request: HttpRequest,
+) -> Option<RefreshTokenClaims> {
+  // Extract the Authorization header
+  let authorization_header = match request.headers().get("Authorization") {
+    Some(header_value) => match header_value.to_str() {
+      Ok(value) => value,
+      Err(_) => return None,
+    },
+    None => return None,
+  };
+  let token = authorization_header.replace("Bearer ", "");
+
+  let decode_result = decode::<RefreshTokenClaims>(
+    &token,
+    &DecodingKey::from_secret(data.config.jwt_secret.as_bytes()),
+    &Validation::default(),
+  );
+
+  if decode_result.is_err() {
+    return None;
+  }
+  let decode_result = decode_result.unwrap();
+
+  Some(decode_result.claims)
+}
+
+fn generate_jwt<T: Serialize, UR: UserRepository>(
+  data: &web::Data<AppState<UR>>,
+  claims: T,
+) -> Result<String, jsonwebtoken::errors::Error> {
+  encode(
+    &Header::new(Algorithm::HS256),
+    &claims,
+    &EncodingKey::from_secret(data.config.jwt_secret.as_ref()),
+  )
+}
+
+fn generate_token_response<UR: UserRepository>(
+  data: web::Data<AppState<UR>>,
+  user: User,
+) -> HttpResponse {
   let now = SystemTime::now()
     .duration_since(UNIX_EPOCH)
     .unwrap()
@@ -101,7 +172,7 @@ pub async fn auth_login<UR: UserRepository>(
     return HttpResponse::InternalServerError().finish();
   }
 
-  let tokens = TokenResponse {
+  let tokens = LoginRTO {
     access_token: access_token.unwrap(),
     refresh_token: refresh_token.unwrap(),
   };
@@ -109,17 +180,6 @@ pub async fn auth_login<UR: UserRepository>(
   HttpResponse::Ok()
     .content_type("application/json")
     .json(tokens)
-}
-
-fn generate_jwt<T: Serialize, UR: UserRepository>(
-  data: &web::Data<AppState<UR>>,
-  claims: T,
-) -> Result<String, jsonwebtoken::errors::Error> {
-  encode(
-    &Header::new(Algorithm::HS256),
-    &claims,
-    &EncodingKey::from_secret(data.config.jwt_secret.as_ref()),
-  )
 }
 
 fn unauthorized() -> HttpResponse {

@@ -23,8 +23,29 @@ pub enum UserRepositoryError {
   Other(String),
 }
 
+pub enum FindOneProperty<'a> {
+  Uuid(&'a str),
+  Email(&'a str),
+}
+
+impl FindOneProperty<'_> {
+  fn to_key_value(&self) -> (&str, AttributeValue) {
+    match self {
+      FindOneProperty::Uuid(uuid) => {
+        ("uuid", AttributeValue::S(uuid.to_string()))
+      }
+      FindOneProperty::Email(email) => {
+        ("email", AttributeValue::S(email.to_string()))
+      }
+    }
+  }
+}
+
 pub trait UserRepository {
-  async fn find_one(&self, email: &str) -> Result<User, UserRepositoryError>;
+  async fn find_one(
+    &self,
+    property: FindOneProperty,
+  ) -> Result<User, UserRepositoryError>;
   async fn create(&self, user: User) -> Result<(), UserRepositoryError>;
 }
 
@@ -41,13 +62,17 @@ impl UserRepositoryImpl {
 }
 
 impl UserRepository for UserRepositoryImpl {
-  async fn find_one(&self, email: &str) -> Result<User, UserRepositoryError> {
+  async fn find_one<'a>(
+    &self,
+    property: FindOneProperty<'a>,
+  ) -> Result<User, UserRepositoryError> {
+    let (key, value) = property.to_key_value();
     let result = self
       .database
       .dynamo_client
       .get_item()
       .table_name("users")
-      .key("email", AttributeValue::S(email.to_string()))
+      .key(key, value)
       .send()
       .await?;
 
@@ -74,7 +99,7 @@ impl UserRepository for UserRepositoryImpl {
 
 #[cfg(test)]
 pub mod tests {
-  use super::{UserRepository, UserRepositoryError};
+  use super::{FindOneProperty, UserRepository, UserRepositoryError};
   use crate::shared::model::user::User;
   use std::sync::RwLock;
 
@@ -91,9 +116,19 @@ pub mod tests {
   }
 
   impl UserRepository for UserRepositoryMock {
-    async fn find_one(&self, email: &str) -> Result<User, UserRepositoryError> {
+    async fn find_one<'a>(
+      &self,
+      property: FindOneProperty<'a>,
+    ) -> Result<User, UserRepositoryError> {
       let users = self.users.read().unwrap(); // Acquire read lock
-      let result = users.iter().find(|user| user.email == email).cloned();
+
+      let result = users
+        .iter()
+        .find(|user| match property {
+          FindOneProperty::Uuid(uuid) => user.uuid == uuid,
+          FindOneProperty::Email(email) => user.email == email,
+        })
+        .cloned();
       result.ok_or(UserRepositoryError::Other(String::new()))
     }
 

@@ -7,7 +7,7 @@ use std::sync::Arc;
 use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{web, App, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
-use auth::auth_login;
+use auth::{access_token, auth_login};
 use shared::{
   config::Config,
   database::Database,
@@ -61,7 +61,8 @@ fn config<UR: UserRepository + 'static>(
         .service(
           web::scope("/auth")
             .wrap(Governor::new(&governor_config))
-            .route("login", web::post().to(auth_login::<UR>)),
+            .route("login", web::post().to(auth_login::<UR>))
+            .route("access-token", web::post().to(access_token::<UR>)),
         )
         .service(
           web::scope("/users")
@@ -74,9 +75,11 @@ fn config<UR: UserRepository + 'static>(
 #[cfg(test)]
 mod tests {
   use super::*;
+  use actix_rt::time::sleep;
   use actix_web::{http::header::HeaderValue, test, App};
+  use auth::rto::login_rto::LoginRTO;
   use shared::repository::user_repository::tests::UserRepositoryMock;
-  use std::{env, net::SocketAddr, str::FromStr};
+  use std::{env, net::SocketAddr, str::FromStr, time::Duration};
 
   #[actix_rt::test]
   async fn test_create_user_and_login_in_memory() {
@@ -123,16 +126,49 @@ mod tests {
         HeaderValue::from_static("application/json"),
       ))
       .set_json(serde_json::json!({
-          "email": "test@taille.ie",
-          "password": "testpassword"
+        "email": "test@taille.ie",
+        "password": "testpassword"
       }))
       .to_request();
 
     let login_resp = test::call_service(&app, login_req).await;
     assert!(login_resp.status().is_success(), "Login failed");
 
-    let body_bytes = test::read_body(login_resp).await;
-    let body_str = String::from_utf8(body_bytes.to_vec()).unwrap();
-    println!("Login response: {}", body_str);
+    let login_body_bytes = test::read_body(login_resp).await;
+    let login_body_str = String::from_utf8(login_body_bytes.to_vec()).unwrap();
+    let login_rto: LoginRTO = serde_json::from_str(&login_body_str)
+      .expect("Failed to parse response JSON");
+
+    // Required otherwise the test runs too fast and the JWT has the same second
+    // expiration. Making the same JWT.
+    sleep(Duration::from_secs(1)).await;
+
+    // 3) Refresh token
+    let access_token_req = test::TestRequest::post()
+      .uri("/v1/auth/access-token")
+      .peer_addr(SocketAddr::from_str("127.0.0.1:12345").unwrap())
+      .append_header((
+        actix_web::http::header::AUTHORIZATION,
+        HeaderValue::from_str(&format!("Bearer {}", login_rto.refresh_token))
+          .unwrap(),
+      ))
+      .to_request();
+
+    let access_token_resp = test::call_service(&app, access_token_req).await;
+    assert!(
+      access_token_resp.status().is_success(),
+      "Refresh token failed"
+    );
+
+    let access_token_body_bytes = test::read_body(access_token_resp).await;
+    let access_token_body_str =
+      String::from_utf8(access_token_body_bytes.to_vec()).unwrap();
+    let access_token_rto: LoginRTO =
+      serde_json::from_str(&access_token_body_str)
+        .expect("Failed to parse response JSON");
+
+    println!("access_token_rto {:?}", access_token_rto);
+    println!("login_rto {:?}", login_rto);
+    assert!(access_token_rto != login_rto);
   }
 }

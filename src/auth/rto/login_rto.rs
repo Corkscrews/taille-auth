@@ -1,6 +1,7 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LoginRTO {
-  pub message: String,
+  pub access_token: String,
+  pub refresh_token: String,
 }

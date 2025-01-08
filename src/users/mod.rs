@@ -9,7 +9,9 @@ use nanoid::nanoid;
 use validator::Validate;
 
 use crate::shared::model::user::User;
-use crate::shared::repository::user_repository::UserRepository;
+use crate::shared::repository::user_repository::{
+  FindOneProperty, UserRepository,
+};
 use crate::AppState;
 
 // #[post("login")]
@@ -26,7 +28,10 @@ pub async fn create_user<UR: UserRepository>(
   // TODO: This solution below is vulnerable to time based attacks, transform the login
   // process into a time constant solution to prevent those issues.
   // Call `find_one` with `await` on the repository instance
-  let user = data.user_repository.find_one(&payload.user_name).await;
+  let user = data
+    .user_repository
+    .find_one(FindOneProperty::Email(&payload.user_name))
+    .await;
 
   if user.is_ok() {
     return user_already_exists();
@@ -45,7 +50,7 @@ pub async fn create_user<UR: UserRepository>(
         .body(r#"{"message": "Resource created"}"#)
     })
     .unwrap_or_else(|error| {
-      println!("{}", error);
+      eprintln!("{}", error);
       HttpResponse::InternalServerError().finish()
     })
 }
