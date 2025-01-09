@@ -14,6 +14,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use validator::Validate;
 
+use crate::shared::config::Config;
 use crate::shared::hash_worker::Hasher;
 use crate::shared::http_error::HttpError;
 use crate::shared::model::user::User;
@@ -44,8 +45,8 @@ struct RefreshTokenClaims {
   exp: u64,
 }
 
-pub async fn auth_login<UR: UserRepository>(
-  data: web::Data<AppState<UR>>,
+pub async fn auth_login<UR: UserRepository, H: Hasher>(
+  data: web::Data<AppState<UR, H>>,
   dto: web::Json<LoginDto>,
 ) -> impl Responder {
   // Perform validation
@@ -75,14 +76,14 @@ pub async fn auth_login<UR: UserRepository>(
   if !password_match_result.unwrap_or(false) {
     return unauthorized();
   }
-  generate_token_response(data, user)
+  generate_token_response(&data.config, user)
 }
 
-pub async fn access_token<UR: UserRepository + 'static>(
-  data: web::Data<AppState<UR>>,
+pub async fn access_token<UR: UserRepository + 'static, H: Hasher>(
+  data: web::Data<AppState<UR, H>>,
   request: HttpRequest,
 ) -> impl Responder {
-  let refresh_token_claims = decode_refresh_token(&data, request).await;
+  let refresh_token_claims = decode_refresh_token(&data.config, request).await;
   if refresh_token_claims.is_none() {
     return unauthorized();
   }
@@ -97,11 +98,11 @@ pub async fn access_token<UR: UserRepository + 'static>(
   }
   let user = user.unwrap();
 
-  generate_token_response(data, user)
+  generate_token_response(&data.config, user)
 }
 
-async fn decode_refresh_token<UR: UserRepository + 'static>(
-  data: &web::Data<AppState<UR>>,
+async fn decode_refresh_token(
+  config: &Config,
   request: HttpRequest,
 ) -> Option<RefreshTokenClaims> {
   // Extract the Authorization header
@@ -116,7 +117,7 @@ async fn decode_refresh_token<UR: UserRepository + 'static>(
 
   let decode_result = decode::<RefreshTokenClaims>(
     &token,
-    &DecodingKey::from_secret(data.config.jwt_secret.as_bytes()),
+    &DecodingKey::from_secret(config.jwt_secret.as_bytes()),
     &Validation::default(),
   );
 
@@ -128,26 +129,23 @@ async fn decode_refresh_token<UR: UserRepository + 'static>(
   Some(decode_result.claims)
 }
 
-fn generate_jwt<T: Serialize, UR: UserRepository>(
-  data: &web::Data<AppState<UR>>,
+fn generate_jwt<T: Serialize>(
+  config: &Config,
   claims: T,
 ) -> Result<String, jsonwebtoken::errors::Error> {
   encode(
     &Header::new(Algorithm::HS256),
     &claims,
-    &EncodingKey::from_secret(data.config.jwt_secret.as_ref()),
+    &EncodingKey::from_secret(config.jwt_secret.as_ref()),
   )
 }
 
-fn generate_token_response<UR: UserRepository>(
-  data: web::Data<AppState<UR>>,
-  user: User,
-) -> HttpResponse {
+fn generate_token_response(config: &Config, user: User) -> HttpResponse {
   let now = Utc::now().timestamp() as u64;
 
   // Generate tokens
   let access_token = generate_jwt(
-    &data,
+    config,
     AccessTokenClaims {
       uuid: user.uuid.clone(),
       role: user.role,
@@ -157,7 +155,7 @@ fn generate_token_response<UR: UserRepository>(
     },
   );
   let refresh_token = generate_jwt(
-    &data,
+    config,
     RefreshTokenClaims {
       uuid: user.uuid.clone(),
       iat: now,

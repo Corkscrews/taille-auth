@@ -38,7 +38,7 @@ pub mod tests {
   pub fn http_request(jwt_secret: &str) -> HttpRequest {
     let authorization_header = HeaderValue::from_str(&format!(
       "Bearer {}",
-      create_fake_access_token(&jwt_secret)
+      create_fake_access_token(jwt_secret)
     ))
     .unwrap();
     actix_web::test::TestRequest::default()
@@ -59,7 +59,7 @@ pub mod tests {
     status_code: StatusCode,
   ) -> T {
     // Convert the `Responder` into an HttpResponse
-    let http_response = responder.respond_to(&request);
+    let http_response = responder.respond_to(request);
 
     // Wrap the HttpResponse in a ServiceResponse so that test utilities can work with it
     let service_response =

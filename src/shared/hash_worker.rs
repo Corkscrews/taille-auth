@@ -20,7 +20,7 @@ pub struct HashWorker {
 }
 
 impl HashWorker {
-  pub fn new(thread_pool: Arc<ThreadPool>, num_threads: u32) -> Self {
+  pub fn new(thread_pool: ThreadPool, num_threads: u32) -> Self {
     // Create a channel for communication between async tasks and threads
     let (tx, rx) =
       flume::bounded::<(flume::Sender<WorkOrderResult>, WorkOrder)>(100);
@@ -30,26 +30,16 @@ impl HashWorker {
     for _ in 0..num_threads {
       // Dispatch the run-loop.
       thread_pool.spawn({
-        // Acquire a closed reference to the Arc<Mutex<Receiver<_>>>
         let arc_rx = Arc::clone(&rx);
         move || {
-          // Temporarily lock the rx for the given bounded channel.
-          // let rx = rx_mutex.lock().unwrap();
           while let Ok((response_tx, work_order)) = arc_rx.recv() {
-            match work_order {
-              WorkOrder::Hash(password) => {
-                // Perform the CPU-bound task: Hashing the input data
-                let result = hash(password, DEFAULT_COST);
-                // Send the result back through the flume channel
-                let _ = response_tx.send(WorkOrderResult::Hash(result));
-              }
-              WorkOrder::Verify(password, hash_password) => {
-                // Perform the CPU-bound task: Hashing the input data
-                let result = verify(password, &hash_password);
-                // Send the result back through the flume channel
-                let _ = response_tx.send(WorkOrderResult::Verify(result));
-              }
-            }
+            let result = match work_order {
+              WorkOrder::Hash(password) => 
+                WorkOrderResult::Hash(hash(password, DEFAULT_COST)),
+              WorkOrder::Verify(password, hashed_password) => 
+                WorkOrderResult::Verify(verify(password, &hashed_password))
+            };
+            let _ = response_tx.send(result);
           }
         }
       });

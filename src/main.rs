@@ -3,9 +3,12 @@ mod helpers;
 mod shared;
 mod users;
 
-use std::sync::Arc;
+use std::{cmp::max, sync::Arc};
 
-use actix_governor::{Governor, GovernorConfigBuilder};
+use actix_governor::{
+  governor::{clock::QuantaInstant, middleware::NoOpMiddleware},
+  Governor, GovernorConfig, GovernorConfigBuilder, PeerIpKeyExtractor,
+};
 use actix_web::{web, App, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
 use auth::{access_token, auth_login};
@@ -13,39 +16,34 @@ use rayon::ThreadPoolBuilder;
 use shared::{
   config::Config,
   database::Database,
-  hash_worker::HashWorker,
+  hash_worker::{HashWorker, Hasher},
   middleware::master_key_middleware::bearer_validator,
   repository::user_repository::{UserRepository, UserRepositoryImpl},
 };
 use users::create_user;
 
 // This struct represents state
-struct AppState<UR: UserRepository> {
-  user_repository: UR,
+struct AppState<UR: UserRepository, H: Hasher> {
+  user_repository: Arc<UR>,
   config: Config,
-  hasher: Arc<HashWorker>,
+  hasher: Arc<H>,
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
   let server_address = "127.0.0.1:3000";
   println!("Listening on http://{}", server_address);
-  let database = Database::new().await;
-  let database = Arc::new(database);
-  HttpServer::new(move || {
-    App::new()
-      .configure(|cfg| config(cfg, UserRepositoryImpl::new(database.clone())))
-  })
-  .bind(server_address)?
-  .run()
-  .await
-}
 
-// Function to initialize the App
-fn config<UR: UserRepository + 'static>(
-  config: &mut web::ServiceConfig,
-  user_repository: UR,
-) {
+  let config = Config::default().await;
+  let database = Database::new(&config);
+  let user_repository = Arc::new(UserRepositoryImpl::new(database));
+
+  let thread_pool = ThreadPoolBuilder::new()
+    .num_threads(max(num_threads() - 2, 1))
+    .build()
+    .unwrap();
+  let hasher = Arc::new(HashWorker::new(thread_pool, 2));
+
   // Rate limit
   // Allow bursts with up to five requests per IP address
   // and replenishes two elements per second
@@ -55,28 +53,58 @@ fn config<UR: UserRepository + 'static>(
     .finish()
     .unwrap();
 
-  let thread_pool = Arc::new(ThreadPoolBuilder::new().build().unwrap());
+  HttpServer::new(move || {
+    App::new().configure(|cfg| {
+      apply_service_config(
+        cfg,
+        config.clone(),
+        &governor_config,
+        hasher.clone(),
+        user_repository.clone(),
+      )
+    })
+  })
+  .workers(2)
+  .bind(server_address)?
+  .run()
+  .await
+}
 
-  config
+// Function to initialize the App
+fn apply_service_config<UR: UserRepository + 'static, H: Hasher + 'static>(
+  service_config: &mut web::ServiceConfig,
+  config: Config,
+  governor_config: &GovernorConfig<
+    PeerIpKeyExtractor,
+    NoOpMiddleware<QuantaInstant>,
+  >,
+  hasher: Arc<H>,
+  user_repository: Arc<UR>,
+) {
+  service_config
     .app_data(web::Data::new(AppState {
       user_repository,
-      config: Config::default(),
-      hasher: Arc::new(HashWorker::new(thread_pool, 2)),
+      config,
+      hasher,
     }))
     .service(
       web::scope("/v1")
         .service(
           web::scope("/auth")
-            .wrap(Governor::new(&governor_config))
-            .route("login", web::post().to(auth_login::<UR>))
-            .route("access-token", web::post().to(access_token::<UR>)),
+            .wrap(Governor::new(governor_config))
+            .route("login", web::post().to(auth_login::<UR, H>))
+            .route("access-token", web::post().to(access_token::<UR, H>)),
         )
         .service(
           web::scope("/users")
-            .wrap(HttpAuthentication::with_fn(bearer_validator::<UR>))
-            .route("", web::post().to(create_user::<UR>)),
+            .wrap(HttpAuthentication::with_fn(bearer_validator::<UR, H>))
+            .route("", web::post().to(create_user::<UR, H>)),
         ),
     );
+}
+
+fn num_threads() -> usize {
+  std::thread::available_parallelism().unwrap().get()
 }
 
 #[cfg(test)]
@@ -102,10 +130,24 @@ mod tests {
     env::set_var("MASTER_KEY", &master_key);
     env::set_var("JWT_SECRET", "FAKE_JWT_SECRET");
 
+    let config = Config::default().await;
+
     // Initialize the service in-memory
-    let app = test::init_service(
-      App::new().configure(|cfg| config(cfg, InMemoryUserRepository::new())),
-    )
+    let app = test::init_service(App::new().configure(|cfg| {
+      apply_service_config(
+        cfg,
+        config,
+        &GovernorConfigBuilder::default().finish().unwrap(),
+        Arc::new(HashWorker::new(
+          ThreadPoolBuilder::new()
+            .num_threads(max(num_threads() - 2, 1))
+            .build()
+            .unwrap(),
+          2,
+        )),
+        Arc::new(InMemoryUserRepository::new()),
+      )
+    }))
     .await;
 
     let email: String = SafeEmail().fake();

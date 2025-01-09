@@ -15,8 +15,8 @@ use crate::shared::repository::user_repository::{
 use crate::shared::rto::created_rto::CreatedRto;
 use crate::AppState;
 
-pub async fn create_user<UR: UserRepository>(
-  data: web::Data<AppState<UR>>,
+pub async fn create_user<UR: UserRepository, H: Hasher>(
+  data: web::Data<AppState<UR, H>>,
   dto: web::Json<CreateUserDto>,
 ) -> impl Responder {
   // Perform validation
@@ -24,10 +24,7 @@ pub async fn create_user<UR: UserRepository>(
     // If validation fails, return a 400 error with details
     return HttpResponse::BadRequest().json(validation_errors);
   }
-
-  // TODO: This solution below is vulnerable to time based attacks, transform the login
-  // process into a time constant solution to prevent those issues.
-  // Call `find_one` with `await` on the repository instance
+  
   let user = data
     .user_repository
     .find_one(FindOneProperty::Email(&dto.email))
@@ -132,15 +129,16 @@ mod tests {
     let users = Arc::new(RwLock::new(Vec::new()));
 
     let app_state = AppState {
-      user_repository: InMemoryUserRepository {
+      user_repository: Arc::new(InMemoryUserRepository {
         users: users.clone(),
-      },
+      }),
       config: Config {
         master_key: nanoid!(),
         jwt_secret: jwt_secret.clone(),
+        aws_config: None,
       },
       hasher: Arc::new(HashWorker::new(
-        Arc::new(ThreadPoolBuilder::new().build().unwrap()),
+        ThreadPoolBuilder::new().build().unwrap(),
         2,
       )),
     };
@@ -175,15 +173,16 @@ mod tests {
       Arc::new(RwLock::new(vec![User::from(dto.clone(), String::new())]));
 
     let app_state = AppState {
-      user_repository: InMemoryUserRepository {
+      user_repository: Arc::new(InMemoryUserRepository {
         users: users.clone(),
-      },
+      }),
       config: Config {
         master_key: nanoid!(),
         jwt_secret: jwt_secret.clone(),
+        aws_config: None,
       },
       hasher: Arc::new(HashWorker::new(
-        Arc::new(ThreadPoolBuilder::new().build().unwrap()),
+        ThreadPoolBuilder::new().build().unwrap(),
         2,
       )),
     };

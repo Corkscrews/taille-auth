@@ -3,7 +3,6 @@ use aws_sdk_dynamodb::{
   operation::{get_item::GetItemError, put_item::PutItemError},
   types::AttributeValue,
 };
-use std::sync::Arc;
 use thiserror::Error;
 
 use crate::shared::{database::Database, model::user::User};
@@ -50,14 +49,12 @@ pub trait UserRepository {
 }
 
 pub struct UserRepositoryImpl {
-  database: Arc<Database>,
+  database: Database
 }
 
 impl UserRepositoryImpl {
-  pub fn new(database: Arc<Database>) -> Self {
-    Self {
-      database: database.clone(),
-    }
+  pub fn new(database: Database) -> Self {
+    Self { database }
   }
 }
 
@@ -75,7 +72,6 @@ impl UserRepository for UserRepositoryImpl {
       .key(key, value)
       .send()
       .await?;
-
     if let Some(item) = result.item {
       let user: User = serde_dynamo::from_item(item).unwrap();
       return Ok(user);
