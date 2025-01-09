@@ -99,7 +99,7 @@ impl From<User> for CreatedRto {
 
 #[cfg(test)]
 mod tests {
-  use std::sync::{Arc, Mutex, RwLock};
+  use std::sync::{Arc, RwLock};
 
   use actix_web::{http::StatusCode, HttpRequest};
   use fake::{
@@ -111,13 +111,11 @@ mod tests {
     Fake,
   };
   use nanoid::nanoid;
-  use rayon::ThreadPoolBuilder;
 
   use crate::{
     helpers::tests::{http_request, parse_http_response},
     shared::{
-      config::Config,
-      repository::user_repository::tests::InMemoryUserRepository, role::Role,
+      config::Config, hash_worker::HashWorker, repository::user_repository::tests::InMemoryUserRepository, role::Role
     },
   };
 
@@ -144,9 +142,7 @@ mod tests {
         master_key: nanoid!(),
         jwt_secret: jwt_secret.clone(),
       },
-      thread_pool: Arc::new(Mutex::new(
-        ThreadPoolBuilder::new().num_threads(1).build().unwrap(),
-      )),
+      hasher: Arc::new(HashWorker::new()),
     };
 
     let request: HttpRequest = http_request(&jwt_secret);
@@ -186,9 +182,7 @@ mod tests {
         master_key: nanoid!(),
         jwt_secret: jwt_secret.clone(),
       },
-      thread_pool: Arc::new(Mutex::new(
-        ThreadPoolBuilder::new().num_threads(1).build().unwrap(),
-      )),
+      hasher: Arc::new(HashWorker::new()),
     };
 
     let request: HttpRequest = http_request(&jwt_secret);
