@@ -58,7 +58,7 @@ pub async fn create_user<UR: UserRepository>(
       HttpResponse::Created()
         .content_type("application/json")
         .append_header((header::LOCATION, format!("/v1/users/{}", &user.uuid)))
-        .json(CreatedRto::from(user.uuid.as_ref()))
+        .json(CreatedRto::from(user))
     })
     .unwrap_or_else(|error| {
       eprintln!("{}", error);
@@ -107,6 +107,15 @@ impl User {
     }
   }
 }
+
+impl From<User> for CreatedRto {
+  fn from(user: User) -> Self {
+    Self {
+      uuid: user.uuid,
+    }
+  }
+}
+
 
 #[cfg(test)]
 mod tests {
