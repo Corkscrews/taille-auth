@@ -1,10 +1,8 @@
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
-
 use actix_web::HttpRequest;
 use actix_web::{web, HttpResponse, Responder};
 use bcrypt::verify;
-use dto::login_dto::LoginDTO;
+use chrono::Utc;
+use dto::login_dto::LoginDto;
 use jsonwebtoken::decode;
 use jsonwebtoken::encode;
 use jsonwebtoken::Algorithm;
@@ -12,11 +10,12 @@ use jsonwebtoken::DecodingKey;
 use jsonwebtoken::EncodingKey;
 use jsonwebtoken::Header;
 use jsonwebtoken::Validation;
-use rto::login_rto::LoginRTO;
+use rto::login_rto::LoginRto;
 use serde::Deserialize;
 use serde::Serialize;
 use validator::Validate;
 
+use crate::shared::http_error::HttpError;
 use crate::shared::model::user::User;
 use crate::shared::repository::user_repository::FindOneProperty;
 use crate::shared::repository::user_repository::UserRepository;
@@ -47,10 +46,10 @@ struct RefreshTokenClaims {
 
 pub async fn auth_login<UR: UserRepository>(
   data: web::Data<AppState<UR>>,
-  payload: web::Json<LoginDTO>,
+  dto: web::Json<LoginDto>,
 ) -> impl Responder {
   // Perform validation
-  if let Err(validation_errors) = payload.validate() {
+  if let Err(validation_errors) = dto.validate() {
     // If validation fails, return a 400 error with details
     return HttpResponse::BadRequest().json(validation_errors);
   }
@@ -60,22 +59,43 @@ pub async fn auth_login<UR: UserRepository>(
   // Call `find_one` with `await` on the repository instance
   let user = data
     .user_repository
-    .find_one(FindOneProperty::Email(&payload.email))
+    .find_one(FindOneProperty::Email(&dto.email))
     .await;
   if user.is_err() {
     return unauthorized();
   }
   let user = user.unwrap();
 
-  // Verify the password
-  let password_is_valid =
-    verify(payload.password.clone(), &user.password).unwrap_or(false);
-
-  if !password_is_valid {
+  if !verify_password(&data, &dto, &user).await {
     return unauthorized();
   }
-
   generate_token_response(data, user)
+}
+
+// Start a new async block. The closure is blocking and is ochestrated by the
+// thread-pool.
+async fn verify_password<UR: UserRepository>(
+  data: &web::Data<AppState<UR>>,
+  dto: &web::Json<LoginDto>,
+  user: &User,
+) -> bool {
+  let payload_password = dto.password.clone();
+  let user_password_hash = user.password_hash.clone();
+  // Start a new async block. The closure is blocking and is ochestrated by the
+  // thread-pool.
+  web::block({
+    let thread_pool = data.thread_pool.clone(); // Clone the shared thread pool
+    let payload_password = payload_password.to_owned();
+    let user_password_hash = user_password_hash.to_owned();
+    move || {
+      let thread_pool = thread_pool.lock().unwrap(); // Lock the thread pool
+      thread_pool.install(|| {
+        verify(&payload_password, &user_password_hash).unwrap_or(false)
+      }) // Perform the hashing
+    }
+  })
+  .await
+  .unwrap()
 }
 
 pub async fn access_token<UR: UserRepository + 'static>(
@@ -143,10 +163,7 @@ fn generate_token_response<UR: UserRepository>(
   data: web::Data<AppState<UR>>,
   user: User,
 ) -> HttpResponse {
-  let now = SystemTime::now()
-    .duration_since(UNIX_EPOCH)
-    .unwrap()
-    .as_secs();
+  let now = Utc::now().timestamp() as u64;
 
   // Generate tokens
   let access_token = generate_jwt(
@@ -172,7 +189,7 @@ fn generate_token_response<UR: UserRepository>(
     return HttpResponse::InternalServerError().finish();
   }
 
-  let tokens = LoginRTO {
+  let tokens = LoginRto {
     access_token: access_token.unwrap(),
     refresh_token: refresh_token.unwrap(),
   };
@@ -185,5 +202,5 @@ fn generate_token_response<UR: UserRepository>(
 fn unauthorized() -> HttpResponse {
   HttpResponse::Unauthorized()
     .content_type("application/json")
-    .body("Unauthorized")
+    .json(HttpError::from("Unauthorized"))
 }

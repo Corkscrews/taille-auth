@@ -14,15 +14,10 @@ pub async fn bearer_validator<UR: UserRepository + 'static>(
   let Some(credentials) = credentials else {
     return Err((error::ErrorBadRequest("no bearer header"), req));
   };
-
   let app_data = req.app_data::<web::Data<AppState<UR>>>().unwrap();
-
-  // eprintln!("{credentials:?}");
-
   if !constant_time_compare(credentials.token(), &app_data.config.master_key) {
     return Err((error::ErrorBadRequest("Missing bearer token"), req));
   }
-
   Ok(req)
 }
 

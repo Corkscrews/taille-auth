@@ -1,13 +1,15 @@
 mod auth;
+mod helpers;
 mod shared;
 mod users;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{web, App, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
 use auth::{access_token, auth_login};
+use rayon::{ThreadPool, ThreadPoolBuilder};
 use shared::{
   config::Config,
   database::Database,
@@ -20,6 +22,7 @@ use users::create_user;
 struct AppState<UR: UserRepository> {
   user_repository: UR,
   config: Config,
+  thread_pool: Arc<Mutex<ThreadPool>>,
 }
 
 #[actix_web::main]
@@ -55,6 +58,9 @@ fn config<UR: UserRepository + 'static>(
     .app_data(web::Data::new(AppState {
       user_repository,
       config: Config::default(),
+      thread_pool: Arc::new(Mutex::new(
+        ThreadPoolBuilder::new().build().unwrap(),
+      )),
     }))
     .service(
       web::scope("/v1")
@@ -77,8 +83,9 @@ mod tests {
   use super::*;
   use actix_rt::time::sleep;
   use actix_web::{http::header::HeaderValue, test, App};
-  use auth::rto::login_rto::LoginRTO;
-  use shared::repository::user_repository::tests::UserRepositoryMock;
+  use auth::rto::login_rto::LoginRto;
+  use fake::{faker::{internet::en::{Password, SafeEmail}, name::raw::Name}, locales::EN, Fake};
+  use shared::repository::user_repository::tests::InMemoryUserRepository;
   use std::{env, net::SocketAddr, str::FromStr, time::Duration};
 
   #[actix_rt::test]
@@ -89,9 +96,12 @@ mod tests {
 
     // Initialize the service in-memory
     let app = test::init_service(
-      App::new().configure(|cfg| config(cfg, UserRepositoryMock::new())), // your config function
+      App::new().configure(|cfg| config(cfg, InMemoryUserRepository::new())),
     )
     .await;
+
+    let email: String = SafeEmail().fake();
+    let password: String = Password(12..13).fake();
 
     // 1) Create user
     let create_req = test::TestRequest::post()
@@ -106,9 +116,9 @@ mod tests {
         HeaderValue::from_static("application/json"),
       ))
       .set_json(serde_json::json!({
-        "email": "test@taille.ie",
-        "userName": "testuser",
-        "password": "testpassword",
+        "email": email,
+        "userName": Name(EN).fake::<String>(),
+        "password": password,
         "role": "driver"
       }))
       .to_request();
@@ -126,8 +136,8 @@ mod tests {
         HeaderValue::from_static("application/json"),
       ))
       .set_json(serde_json::json!({
-        "email": "test@taille.ie",
-        "password": "testpassword"
+        "email": email,
+        "password": password
       }))
       .to_request();
 
@@ -136,7 +146,7 @@ mod tests {
 
     let login_body_bytes = test::read_body(login_resp).await;
     let login_body_str = String::from_utf8(login_body_bytes.to_vec()).unwrap();
-    let login_rto: LoginRTO = serde_json::from_str(&login_body_str)
+    let login_rto: LoginRto = serde_json::from_str(&login_body_str)
       .expect("Failed to parse response JSON");
 
     // Required otherwise the test runs too fast and the JWT has the same second
@@ -163,7 +173,7 @@ mod tests {
     let access_token_body_bytes = test::read_body(access_token_resp).await;
     let access_token_body_str =
       String::from_utf8(access_token_body_bytes.to_vec()).unwrap();
-    let access_token_rto: LoginRTO =
+    let access_token_rto: LoginRto =
       serde_json::from_str(&access_token_body_str)
         .expect("Failed to parse response JSON");
 

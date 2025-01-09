@@ -3,8 +3,8 @@ use validator_derive::Validate;
 
 use crate::shared::role::Role;
 
-#[derive(Debug, Deserialize, Validate)]
-pub struct CreateUserDTO {
+#[derive(Debug, Clone, Deserialize, Validate)]
+pub struct CreateUserDto {
   #[validate(length(
     min = 1,
     message = "UserName must have at least 1 characters"

@@ -101,21 +101,21 @@ impl UserRepository for UserRepositoryImpl {
 pub mod tests {
   use super::{FindOneProperty, UserRepository, UserRepositoryError};
   use crate::shared::model::user::User;
-  use std::sync::RwLock;
+  use std::sync::{Arc, RwLock};
 
-  pub struct UserRepositoryMock {
-    users: RwLock<Vec<User>>,
+  pub struct InMemoryUserRepository {
+    pub users: Arc<RwLock<Vec<User>>>,
   }
 
-  impl UserRepositoryMock {
+  impl InMemoryUserRepository {
     pub fn new() -> Self {
       Self {
-        users: RwLock::new(Vec::new()),
+        users: Arc::new(RwLock::new(Vec::new())),
       }
     }
   }
 
-  impl UserRepository for UserRepositoryMock {
+  impl UserRepository for InMemoryUserRepository {
     async fn find_one<'a>(
       &self,
       property: FindOneProperty<'a>,

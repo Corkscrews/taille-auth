@@ -2,7 +2,7 @@ use serde::Deserialize;
 use validator_derive::Validate;
 
 #[derive(Debug, Deserialize, Validate)]
-pub struct LoginDTO {
+pub struct LoginDto {
   #[validate(length(
     min = 1,
     message = "email must have at least 1 characters"
