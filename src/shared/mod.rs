@@ -1,5 +1,6 @@
 pub mod config;
 pub mod database;
+pub mod hash_worker;
 pub mod http_error;
 pub mod middleware;
 pub mod model;

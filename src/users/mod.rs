@@ -8,6 +8,7 @@ use dto::create_user_dto::CreateUserDto;
 use nanoid::nanoid;
 use validator::Validate;
 
+use crate::shared::hash_worker::Hasher;
 use crate::shared::http_error::HttpError;
 use crate::shared::model::user::User;
 use crate::shared::repository::user_repository::{
@@ -38,9 +39,11 @@ pub async fn create_user<UR: UserRepository>(
     return user_already_exists();
   }
 
-  // Start a new async block. The closure is blocking and is ochestrated by the
-  // thread-pool.
-  let password_hash_result = hash_password(&data, &dto).await;
+  let password_hash_result = data
+    .hasher
+    .as_ref()
+    .hash_password(&dto.password)
+    .await;
 
   if let Err(error) = password_hash_result {
     eprintln!("{}", error);
@@ -64,26 +67,6 @@ pub async fn create_user<UR: UserRepository>(
       eprintln!("{}", error);
       internal_server_error()
     })
-}
-
-async fn hash_password<UR: UserRepository>(
-  data: &web::Data<AppState<UR>>,
-  dto: &CreateUserDto,
-) -> Result<String, BcryptError> {
-  // Create a closed reference of the password to be passed to the thread-pool runner.
-  let password = dto.password.clone();
-  // Start a new async block. The closure is blocking and is ochestrated by the
-  // thread-pool.
-  web::block({
-    let thread_pool = data.thread_pool.clone();
-    let password = password.to_owned();
-    move || {
-      let thread_pool = thread_pool.lock().unwrap();
-      thread_pool.install(|| hash(password, DEFAULT_COST))
-    }
-  })
-  .await
-  .unwrap()
 }
 
 fn user_already_exists() -> HttpResponse {
@@ -110,12 +93,9 @@ impl User {
 
 impl From<User> for CreatedRto {
   fn from(user: User) -> Self {
-    Self {
-      uuid: user.uuid,
-    }
+    Self { uuid: user.uuid }
   }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -195,9 +175,8 @@ mod tests {
       role: Role::Customer,
     };
 
-    let users = Arc::new(RwLock::new(vec![
-      User::from(dto.clone(), String::new())
-    ]));
+    let users =
+      Arc::new(RwLock::new(vec![User::from(dto.clone(), String::new())]));
 
     let app_state = AppState {
       user_repository: InMemoryUserRepository {
@@ -220,11 +199,8 @@ mod tests {
     let users = users.read().unwrap().clone();
     assert_eq!(users.len(), 1);
 
-    let error: HttpError = parse_http_response(
-      responder, 
-      &request, 
-      StatusCode::CONFLICT
-    ).await;
+    let error: HttpError =
+      parse_http_response(responder, &request, StatusCode::CONFLICT).await;
 
     // Assertions
     assert_eq!(error.message, "User already exists");

@@ -15,6 +15,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use validator::Validate;
 
+use crate::shared::hash_worker::Hasher;
 use crate::shared::http_error::HttpError;
 use crate::shared::model::user::User;
 use crate::shared::repository::user_repository::FindOneProperty;
@@ -66,36 +67,16 @@ pub async fn auth_login<UR: UserRepository>(
   }
   let user = user.unwrap();
 
-  if !verify_password(&data, &dto, &user).await {
+  let password_match_result = data
+    .hasher
+    .as_ref()
+    .verify_password(&dto.password, &user.password_hash)
+    .await;
+
+  if !password_match_result.unwrap_or(false) {
     return unauthorized();
   }
   generate_token_response(data, user)
-}
-
-// Start a new async block. The closure is blocking and is ochestrated by the
-// thread-pool.
-async fn verify_password<UR: UserRepository>(
-  data: &web::Data<AppState<UR>>,
-  dto: &web::Json<LoginDto>,
-  user: &User,
-) -> bool {
-  let payload_password = dto.password.clone();
-  let user_password_hash = user.password_hash.clone();
-  // Start a new async block. The closure is blocking and is ochestrated by the
-  // thread-pool.
-  web::block({
-    let thread_pool = data.thread_pool.clone(); // Clone the shared thread pool
-    let payload_password = payload_password.to_owned();
-    let user_password_hash = user_password_hash.to_owned();
-    move || {
-      let thread_pool = thread_pool.lock().unwrap(); // Lock the thread pool
-      thread_pool.install(|| {
-        verify(&payload_password, &user_password_hash).unwrap_or(false)
-      }) // Perform the hashing
-    }
-  })
-  .await
-  .unwrap()
 }
 
 pub async fn access_token<UR: UserRepository + 'static>(

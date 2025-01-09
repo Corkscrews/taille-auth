@@ -11,10 +11,7 @@ use actix_web_httpauth::middleware::HttpAuthentication;
 use auth::{access_token, auth_login};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use shared::{
-  config::Config,
-  database::Database,
-  middleware::master_key_middleware::bearer_validator,
-  repository::user_repository::{UserRepository, UserRepositoryImpl},
+  config::Config, database::Database, hash_worker::HashWorker, middleware::master_key_middleware::bearer_validator, repository::user_repository::{UserRepository, UserRepositoryImpl}
 };
 use users::create_user;
 
@@ -22,7 +19,7 @@ use users::create_user;
 struct AppState<UR: UserRepository> {
   user_repository: UR,
   config: Config,
-  thread_pool: Arc<Mutex<ThreadPool>>,
+  hasher: Arc<HashWorker>
 }
 
 #[actix_web::main]
@@ -58,9 +55,7 @@ fn config<UR: UserRepository + 'static>(
     .app_data(web::Data::new(AppState {
       user_repository,
       config: Config::default(),
-      thread_pool: Arc::new(Mutex::new(
-        ThreadPoolBuilder::new().build().unwrap(),
-      )),
+      hasher: Arc::new(HashWorker::new())
     }))
     .service(
       web::scope("/v1")
@@ -84,7 +79,14 @@ mod tests {
   use actix_rt::time::sleep;
   use actix_web::{http::header::HeaderValue, test, App};
   use auth::rto::login_rto::LoginRto;
-  use fake::{faker::{internet::en::{Password, SafeEmail}, name::raw::Name}, locales::EN, Fake};
+  use fake::{
+    faker::{
+      internet::en::{Password, SafeEmail},
+      name::raw::Name,
+    },
+    locales::EN,
+    Fake,
+  };
   use shared::repository::user_repository::tests::InMemoryUserRepository;
   use std::{env, net::SocketAddr, str::FromStr, time::Duration};
 
