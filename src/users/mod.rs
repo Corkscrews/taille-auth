@@ -2,8 +2,6 @@ pub mod dto;
 
 use actix_web::http::header;
 use actix_web::{web, HttpResponse, Responder};
-use bcrypt::DEFAULT_COST;
-use bcrypt::{hash, BcryptError};
 use dto::create_user_dto::CreateUserDto;
 use nanoid::nanoid;
 use validator::Validate;
@@ -39,11 +37,8 @@ pub async fn create_user<UR: UserRepository>(
     return user_already_exists();
   }
 
-  let password_hash_result = data
-    .hasher
-    .as_ref()
-    .hash_password(&dto.password)
-    .await;
+  let password_hash_result =
+    data.hasher.as_ref().hash_password(&dto.password).await;
 
   if let Err(error) = password_hash_result {
     eprintln!("{}", error);
@@ -111,11 +106,13 @@ mod tests {
     Fake,
   };
   use nanoid::nanoid;
+  use rayon::ThreadPoolBuilder;
 
   use crate::{
     helpers::tests::{http_request, parse_http_response},
     shared::{
-      config::Config, hash_worker::HashWorker, repository::user_repository::tests::InMemoryUserRepository, role::Role
+      config::Config, hash_worker::HashWorker,
+      repository::user_repository::tests::InMemoryUserRepository, role::Role,
     },
   };
 
@@ -142,7 +139,10 @@ mod tests {
         master_key: nanoid!(),
         jwt_secret: jwt_secret.clone(),
       },
-      hasher: Arc::new(HashWorker::new()),
+      hasher: Arc::new(HashWorker::new(
+        Arc::new(ThreadPoolBuilder::new().build().unwrap()),
+        2,
+      )),
     };
 
     let request: HttpRequest = http_request(&jwt_secret);
@@ -182,7 +182,10 @@ mod tests {
         master_key: nanoid!(),
         jwt_secret: jwt_secret.clone(),
       },
-      hasher: Arc::new(HashWorker::new()),
+      hasher: Arc::new(HashWorker::new(
+        Arc::new(ThreadPoolBuilder::new().build().unwrap()),
+        2,
+      )),
     };
 
     let request: HttpRequest = http_request(&jwt_secret);

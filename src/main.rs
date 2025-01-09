@@ -3,15 +3,19 @@ mod helpers;
 mod shared;
 mod users;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{web, App, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
 use auth::{access_token, auth_login};
-use rayon::{ThreadPool, ThreadPoolBuilder};
+use rayon::ThreadPoolBuilder;
 use shared::{
-  config::Config, database::Database, hash_worker::HashWorker, middleware::master_key_middleware::bearer_validator, repository::user_repository::{UserRepository, UserRepositoryImpl}
+  config::Config,
+  database::Database,
+  hash_worker::HashWorker,
+  middleware::master_key_middleware::bearer_validator,
+  repository::user_repository::{UserRepository, UserRepositoryImpl},
 };
 use users::create_user;
 
@@ -19,7 +23,7 @@ use users::create_user;
 struct AppState<UR: UserRepository> {
   user_repository: UR,
   config: Config,
-  hasher: Arc<HashWorker>
+  hasher: Arc<HashWorker>,
 }
 
 #[actix_web::main]
@@ -51,11 +55,13 @@ fn config<UR: UserRepository + 'static>(
     .finish()
     .unwrap();
 
+  let thread_pool = Arc::new(ThreadPoolBuilder::new().build().unwrap());
+
   config
     .app_data(web::Data::new(AppState {
       user_repository,
       config: Config::default(),
-      hasher: Arc::new(HashWorker::new())
+      hasher: Arc::new(HashWorker::new(thread_pool, 2)),
     }))
     .service(
       web::scope("/v1")

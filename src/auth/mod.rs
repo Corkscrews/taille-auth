@@ -1,6 +1,5 @@
 use actix_web::HttpRequest;
 use actix_web::{web, HttpResponse, Responder};
-use bcrypt::verify;
 use chrono::Utc;
 use dto::login_dto::LoginDto;
 use jsonwebtoken::decode;
