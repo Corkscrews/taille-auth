@@ -1,9 +1,12 @@
 pub mod dto;
+pub mod rto;
 
 use actix_web::http::header;
 use actix_web::{web, HttpResponse, Responder};
+use chrono::Utc;
 use dto::create_user_dto::CreateUserDto;
 use nanoid::nanoid;
+use rto::find_user_rto::FindUserRto;
 use validator::Validate;
 
 use crate::shared::hash_worker::Hasher;
@@ -61,6 +64,39 @@ pub async fn create_user<UR: UserRepository, H: Hasher>(
     })
 }
 
+pub async fn get_users<UR: UserRepository, H: Hasher>(
+  data: web::Data<AppState<UR, H>>
+) -> impl Responder {
+  data
+    .user_repository
+    .find_all()
+    .await
+    .map(|users| {
+      HttpResponse::Created()
+        .content_type("application/json")
+        .json(
+          users
+            .into_iter()
+            .map(FindUserRto::from)
+            .collect::<Vec<FindUserRto>>()
+        )
+    })
+    .unwrap_or_else(|error| {
+      eprintln!("{}", error);
+      internal_server_error()
+    })
+}
+
+impl From<User> for FindUserRto {
+    fn from(user: User) -> Self {
+        Self {
+          email: user.email,
+          user_name: user.user_name,
+          role: user.role
+        }
+    }
+}
+
 fn user_already_exists() -> HttpResponse {
   HttpResponse::Conflict()
     .content_type("application/json")
@@ -79,6 +115,8 @@ impl User {
       user_name: dto.user_name,
       password_hash,
       role: dto.role,
+      created_at: Utc::now(),
+      updated_at: Utc::now()
     }
   }
 }

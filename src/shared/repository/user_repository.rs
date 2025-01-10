@@ -45,6 +45,7 @@ pub trait UserRepository {
     &self,
     property: FindOneProperty,
   ) -> Result<User, UserRepositoryError>;
+  async fn find_all(&self) -> Result<Vec<User>, UserRepositoryError>;
   async fn create(&self, user: User) -> Result<(), UserRepositoryError>;
 }
 
@@ -77,6 +78,12 @@ impl UserRepository for UserRepositoryImpl {
       return Ok(user);
     }
     Err(UserRepositoryError::Other(String::from("No item")))
+  }
+
+  async fn find_all(
+    &self
+  ) -> Result<Vec<User>, UserRepositoryError> {
+    Ok(Vec::new())
   }
 
   async fn create(&self, user: User) -> Result<(), UserRepositoryError> {
@@ -132,6 +139,10 @@ pub mod tests {
       let mut users = self.users.write().unwrap(); // Acquire write lock
       users.push(user.clone());
       Ok(())
+    }
+    
+    async fn find_all(&self) -> Result<Vec<User>, UserRepositoryError> {
+      Ok(self.users.read().unwrap().clone())
     }
   }
 }

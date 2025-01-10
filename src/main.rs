@@ -20,7 +20,7 @@ use shared::{
   middleware::master_key_middleware::bearer_validator,
   repository::user_repository::{UserRepository, UserRepositoryImpl},
 };
-use users::create_user;
+use users::{create_user, get_users};
 
 // This struct represents state
 struct AppState<UR: UserRepository, H: Hasher> {
@@ -98,6 +98,7 @@ fn apply_service_config<UR: UserRepository + 'static, H: Hasher + 'static>(
         .service(
           web::scope("/users")
             .wrap(HttpAuthentication::with_fn(bearer_validator::<UR, H>))
+            .route("", web::get().to(get_users::<UR, H>))
             .route("", web::post().to(create_user::<UR, H>)),
         ),
     );

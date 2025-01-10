@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::shared::role::Role;
@@ -9,4 +10,6 @@ pub struct User {
   pub user_name: String,
   pub password_hash: String,
   pub role: Role,
+  pub created_at: DateTime<Utc>,
+  pub updated_at: DateTime<Utc>,
 }
