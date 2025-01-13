@@ -27,9 +27,9 @@ pub struct HashWorker {
 
 impl HashWorker {
   pub fn new(thread_pool: ThreadPool, num_threads: u32) -> Self {
-    // Arbitrary number of available channels for processing hash requests. Since each 
+    // Arbitrary number of available channels for processing hash requests. Since each
     // hashing operation takes at least 1 second to complete, the channel capacity is set
-    // to allow up to 3 seconds' worth of requests to queue, ensuring efficient throughput 
+    // to allow up to 3 seconds' worth of requests to queue, ensuring efficient throughput
     // and minimal blocking.
     let channels_capacity = num_threads * 3;
     // Create a channel for communication between async tasks and threads
@@ -117,5 +117,52 @@ impl Hasher for HashWorker {
       .recv_async()
       .await
       .map_err(|_| HashWorkerError::Receive)?
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use fake::{faker::internet::en::Password, Fake};
+  use rayon::ThreadPoolBuilder;
+
+  #[actix_web::test]
+  async fn test_hash_and_verify_password() {
+    // Create a thread pool with 4 threads
+    let thread_pool = ThreadPoolBuilder::new()
+      .num_threads(4)
+      .build()
+      .expect("Failed to create thread pool");
+
+    // Initialize the HashWorker with 4 threads
+    let hash_worker = HashWorker::new(thread_pool, 4);
+
+    // Test data
+    let password = Password(12..13).fake::<String>();
+
+    // Hash the password
+    let hashed_password = hash_worker
+      .hash_password(&password)
+      .await
+      .expect("Hashing failed");
+
+    // Verify the hashed password
+    let is_valid = hash_worker
+      .verify_password(&password, &hashed_password)
+      .await
+      .expect("Verification failed");
+
+    // Assert that the hash is valid
+    assert!(is_valid, "The password verification failed");
+
+    // Test invalid password
+    let invalid_password = "wrong_password";
+    let is_invalid = hash_worker
+      .verify_password(invalid_password, &hashed_password)
+      .await
+      .expect("Verification failed for invalid password");
+
+    // Assert that the verification fails for an incorrect password
+    assert!(!is_invalid, "The password verification should have failed");
   }
 }

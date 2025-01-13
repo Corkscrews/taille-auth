@@ -26,7 +26,7 @@ pub struct CreateUserDto {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use fake::faker::internet::en::SafeEmail;
+  use fake::faker::internet::en::{Password, SafeEmail};
   use fake::faker::lorem::en::Word;
   use fake::Fake;
   use serde_json::json;
@@ -37,7 +37,7 @@ mod tests {
     // Test case: Valid data
     let valid_email: String = SafeEmail().fake();
     let valid_user_name: String = Word().fake();
-    let valid_password: String = Word().fake();
+    let valid_password: String = Password(12..13).fake();
     let valid_dto = CreateUserDto {
       email: valid_email.clone(),
       user_name: valid_user_name.clone(),
