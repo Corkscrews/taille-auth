@@ -17,11 +17,10 @@ use validator::Validate;
 use crate::shared::config::Config;
 use crate::shared::hash_worker::Hasher;
 use crate::shared::http_error::HttpError;
-use crate::shared::model::user::User;
-use crate::shared::repository::user_repository::FindOneProperty;
-use crate::shared::repository::user_repository::UserRepository;
 use crate::shared::role::Role;
-use crate::AppState;
+use crate::users::model::user::User;
+use crate::users::repository::user_repository::FindOneProperty;
+use crate::users::repository::user_repository::UserRepository;
 
 pub mod dto;
 pub mod rto;
@@ -46,7 +45,9 @@ struct RefreshTokenClaims {
 }
 
 pub async fn auth_login<UR: UserRepository, H: Hasher>(
-  data: web::Data<AppState<UR, H>>,
+  config: web::Data<Config>,
+  user_repository: web::Data<UR>,
+  hasher: web::Data<H>,
   dto: web::Json<LoginDto>,
 ) -> impl Responder {
   // Perform validation
@@ -58,8 +59,7 @@ pub async fn auth_login<UR: UserRepository, H: Hasher>(
   // TODO: This solution below is vulnerable to time based attacks, transform the login
   // process into a time constant solution to prevent those issues.
   // Call `find_one` with `await` on the repository instance
-  let user = data
-    .user_repository
+  let user = user_repository
     .find_one(FindOneProperty::Email(&dto.email))
     .await;
   if user.is_err() {
@@ -67,8 +67,7 @@ pub async fn auth_login<UR: UserRepository, H: Hasher>(
   }
   let user = user.unwrap();
 
-  let password_match_result = data
-    .hasher
+  let password_match_result = hasher
     .as_ref()
     .verify_password(&dto.password, &user.password_hash)
     .await;
@@ -76,21 +75,21 @@ pub async fn auth_login<UR: UserRepository, H: Hasher>(
   if !password_match_result.unwrap_or(false) {
     return unauthorized();
   }
-  generate_token_response(&data.config, user)
+  generate_token_response(&config, user)
 }
 
 pub async fn access_token<UR: UserRepository + 'static, H: Hasher>(
-  data: web::Data<AppState<UR, H>>,
+  config: web::Data<Config>,
+  user_repository: web::Data<UR>,
   request: HttpRequest,
 ) -> impl Responder {
-  let refresh_token_claims = decode_refresh_token(&data.config, request).await;
+  let refresh_token_claims = decode_refresh_token(&config, request).await;
   if refresh_token_claims.is_none() {
     return unauthorized();
   }
   let refresh_token_claims = refresh_token_claims.unwrap();
 
-  let user = data
-    .user_repository
+  let user = user_repository
     .find_one(FindOneProperty::Uuid(&refresh_token_claims.uuid))
     .await;
   if user.is_err() {
@@ -98,7 +97,7 @@ pub async fn access_token<UR: UserRepository + 'static, H: Hasher>(
   }
   let user = user.unwrap();
 
-  generate_token_response(&data.config, user)
+  generate_token_response(&config, user)
 }
 
 async fn decode_refresh_token(

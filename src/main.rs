@@ -18,16 +18,11 @@ use shared::{
   database::Database,
   hash_worker::{HashWorker, Hasher},
   middleware::master_key_middleware::bearer_validator,
+};
+use users::{
+  create_user, get_users,
   repository::user_repository::{UserRepository, UserRepositoryImpl},
 };
-use users::{create_user, get_users};
-
-// This struct represents state
-struct AppState<UR: UserRepository, H: Hasher> {
-  user_repository: Arc<UR>,
-  config: Config,
-  hasher: Arc<H>,
-}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -53,6 +48,8 @@ async fn main() -> std::io::Result<()> {
     .finish()
     .unwrap();
 
+  let config = Arc::new(config);
+
   HttpServer::new(move || {
     App::new().configure(|cfg| {
       apply_service_config(
@@ -73,7 +70,7 @@ async fn main() -> std::io::Result<()> {
 // Function to initialize the App
 fn apply_service_config<UR: UserRepository + 'static, H: Hasher + 'static>(
   service_config: &mut web::ServiceConfig,
-  config: Config,
+  config: Arc<Config>,
   governor_config: &GovernorConfig<
     PeerIpKeyExtractor,
     NoOpMiddleware<QuantaInstant>,
@@ -82,11 +79,9 @@ fn apply_service_config<UR: UserRepository + 'static, H: Hasher + 'static>(
   user_repository: Arc<UR>,
 ) {
   service_config
-    .app_data(web::Data::new(AppState {
-      user_repository,
-      config,
-      hasher,
-    }))
+    .app_data(web::Data::from(config.clone()))
+    .app_data(web::Data::from(user_repository))
+    .app_data(web::Data::from(hasher))
     .service(
       web::scope("/v1")
         .service(
@@ -97,8 +92,12 @@ fn apply_service_config<UR: UserRepository + 'static, H: Hasher + 'static>(
         )
         .service(
           web::scope("/users")
-            .wrap(HttpAuthentication::with_fn(bearer_validator::<UR, H>))
-            .route("", web::get().to(get_users::<UR, H>))
+            .wrap(HttpAuthentication::with_fn({
+              move |req, credentials| {
+                bearer_validator(req, credentials, config.clone())
+              }
+            }))
+            .route("", web::get().to(get_users::<UR>))
             .route("", web::post().to(create_user::<UR, H>)),
         ),
     );
@@ -122,8 +121,8 @@ mod tests {
     locales::EN,
     Fake,
   };
-  use shared::repository::user_repository::tests::InMemoryUserRepository;
   use std::{env, net::SocketAddr, str::FromStr, time::Duration};
+  use users::repository::user_repository::tests::InMemoryUserRepository;
 
   #[actix_rt::test]
   async fn test_create_user_and_login_in_memory() {
@@ -132,6 +131,7 @@ mod tests {
     env::set_var("JWT_SECRET", "FAKE_JWT_SECRET");
 
     let config = Config::default().await;
+    let config = Arc::new(config);
 
     // Initialize the service in-memory
     let app = test::init_service(App::new().configure(|cfg| {

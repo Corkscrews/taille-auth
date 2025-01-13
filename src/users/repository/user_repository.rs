@@ -5,7 +5,7 @@ use aws_sdk_dynamodb::{
 };
 use thiserror::Error;
 
-use crate::shared::{database::Database, model::user::User};
+use crate::{shared::database::Database, users::model::user::User};
 
 #[derive(Debug, Error)]
 pub enum UserRepositoryError {
@@ -50,7 +50,7 @@ pub trait UserRepository {
 }
 
 pub struct UserRepositoryImpl {
-  database: Database
+  database: Database,
 }
 
 impl UserRepositoryImpl {
@@ -80,9 +80,7 @@ impl UserRepository for UserRepositoryImpl {
     Err(UserRepositoryError::Other(String::from("No item")))
   }
 
-  async fn find_all(
-    &self
-  ) -> Result<Vec<User>, UserRepositoryError> {
+  async fn find_all(&self) -> Result<Vec<User>, UserRepositoryError> {
     Ok(Vec::new())
   }
 
@@ -103,7 +101,7 @@ impl UserRepository for UserRepositoryImpl {
 #[cfg(test)]
 pub mod tests {
   use super::{FindOneProperty, UserRepository, UserRepositoryError};
-  use crate::shared::model::user::User;
+  use crate::users::model::user::User;
   use std::sync::{Arc, RwLock};
 
   pub struct InMemoryUserRepository {
@@ -140,7 +138,7 @@ pub mod tests {
       users.push(user.clone());
       Ok(())
     }
-    
+
     async fn find_all(&self) -> Result<Vec<User>, UserRepositoryError> {
       Ok(self.users.read().unwrap().clone())
     }
