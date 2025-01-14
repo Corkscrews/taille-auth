@@ -16,20 +16,21 @@ use nanoid::nanoid;
 use rayon::ThreadPoolBuilder;
 use shared::{
   config::Config,
-  database::MongoDatabase,
+  database::{Database, InMemoryDatabase},
   hash_worker::{HashWorker, Hasher},
   middleware::master_key_middleware::bearer_validator,
 };
 use users::{
   create_user, get_users,
-  repository::user_repository::{MongoUserRepositoryImpl, UserRepository},
+  repository::user_repository::{UserRepository, UserRepositoryImpl},
 };
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
   let config = Config::default().await;
-  let database = MongoDatabase::new(&config).await;
-  let user_repository = Arc::new(MongoUserRepositoryImpl::new(database));
+  let user_repository =
+    UserRepositoryImpl::new(InMemoryDatabase::new(&config).await.unwrap());
+  let user_repository = Arc::new(user_repository);
 
   let thread_pool = ThreadPoolBuilder::new()
     .num_threads(max(num_threads() - 2, 1))
@@ -135,8 +136,9 @@ mod tests {
     locales::EN,
     Fake,
   };
+  use shared::database::InMemoryDatabase;
   use std::{env, net::SocketAddr, str::FromStr, time::Duration};
-  use users::repository::user_repository::tests::InMemoryUserRepository;
+  use users::repository::user_repository::UserRepositoryImpl;
 
   #[actix_rt::test]
   async fn test_create_user_and_login_in_memory() {
@@ -146,6 +148,11 @@ mod tests {
 
     let config = Config::default().await;
     let config = Arc::new(config);
+
+    let user_repository =
+      Arc::new(UserRepositoryImpl::<InMemoryDatabase>::new(
+        InMemoryDatabase::new(&config).await.unwrap(),
+      ));
 
     // Initialize the service in-memory
     let app = test::init_service(App::new().configure(|cfg| {
@@ -160,7 +167,7 @@ mod tests {
             .unwrap(),
           2,
         )),
-        Arc::new(InMemoryUserRepository::new()),
+        user_repository,
       )
     }))
     .await;
