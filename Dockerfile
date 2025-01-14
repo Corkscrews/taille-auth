@@ -37,8 +37,6 @@ COPY --from=builder /usr/src/app/target/release/taille-auth /app/taille-auth
 # Make the binary executable
 RUN chmod +x /app/taille-auth
 
-ENV ADDRESS=0.0.0.0:3000
-
 # Expose the port for Railway (use the $PORT environment variable)
 ENV PORT=3000
 EXPOSE 3000
