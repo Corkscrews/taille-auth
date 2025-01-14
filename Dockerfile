@@ -11,7 +11,10 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy the pre-built binary into the image
-COPY ./target/release/taille-auth /app/taille-auth
+# COPY ./target/release/taille-auth /app/taille-auth
+COPY . /app
+
+RUN ls
 
 # Expose the port for Railway (use the $PORT environment variable)
 ENV PORT=3000
