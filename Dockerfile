@@ -7,6 +7,8 @@ RUN apk add --no-cache libssl1.1 ca-certificates
 # Set the working directory in the final image
 WORKDIR /app
 
+RUN ls
+
 # Copy the pre-built binary into the image
 COPY ./target/release/taille-auth /app/taille-auth
 
