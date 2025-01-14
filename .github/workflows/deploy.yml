@@ -43,4 +43,4 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           CI: true
-        run: railway up --service=taille-auth --verbose .
+        run: railway up --service=taille-auth
