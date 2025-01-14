@@ -4,10 +4,19 @@ FROM rust:latest AS builder
 # Set the working directory for the build
 WORKDIR /usr/src/app
 
-# Copy the entire project into the container
+# Copy the Cargo.toml and Cargo.lock files first (for dependency caching)
+COPY Cargo.toml Cargo.lock ./
+
+# Create a dummy main.rs to prebuild dependencies
+RUN mkdir -p src && echo "fn main() {}" > src/main.rs
+
+# Pre-build dependencies
+RUN cargo build --release || true
+
+# Now copy the full source code
 COPY . .
 
-# Build the Rust project in release mode
+# Build the actual project in release mode
 RUN cargo build --release
 
 # Use a lightweight image for the runtime
@@ -28,9 +37,11 @@ COPY --from=builder /usr/src/app/target/release/taille-auth /app/taille-auth
 # Make the binary executable
 RUN chmod +x /app/taille-auth
 
+ENV ADDRESS=0.0.0.0:3000
+
 # Expose the port for Railway (use the $PORT environment variable)
 ENV PORT=3000
 EXPOSE 3000
 
 # Command to run the application
-CMD ["./taille-auth", "--port", "$PORT"]
+CMD ["./taille-auth"]

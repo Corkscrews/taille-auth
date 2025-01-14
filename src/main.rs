@@ -27,9 +27,6 @@ use users::{
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-  let server_address = "127.0.0.1:3000";
-  println!("Listening on http://{}", server_address);
-
   let config = Config::default().await;
   let database = MongoDatabase::new(&config).await;
   let user_repository = Arc::new(MongoUserRepositoryImpl::new(database));
@@ -48,6 +45,9 @@ async fn main() -> std::io::Result<()> {
     .burst_size(5)
     .finish()
     .unwrap();
+
+  let server_address = config.server_address.clone();
+  println!("Listening on http://{}", server_address);
 
   let config = Arc::new(config);
 
