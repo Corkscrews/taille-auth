@@ -98,8 +98,8 @@ fn apply_service_config<UR: UserRepository + 'static, H: Hasher + 'static>(
                 bearer_validator(req, credentials, config.clone())
               }
             }))
-            .route("/", web::get().to(get_users::<UR>))
-            .route("/", web::post().to(create_user::<UR, H>)),
+            .route("", web::get().to(get_users::<UR>))
+            .route("", web::post().to(create_user::<UR, H>)),
         ),
     );
 }
