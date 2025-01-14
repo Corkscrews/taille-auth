@@ -3,7 +3,7 @@ name: Rust Test and Coverage
 on:
   push:
     branches:
-      - master
+      - main
       - development
   pull_request:
 
