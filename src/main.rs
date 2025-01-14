@@ -88,8 +88,8 @@ fn apply_service_config<UR: UserRepository + 'static, H: Hasher + 'static>(
         .service(
           web::scope("/auth")
             .wrap(Governor::new(governor_config))
-            .route("login", web::post().to(auth_login::<UR, H>))
-            .route("access-token", web::post().to(access_token::<UR, H>)),
+            .route("/login", web::post().to(auth_login::<UR, H>))
+            .route("/access-token", web::post().to(access_token::<UR, H>)),
         )
         .service(
           web::scope("/users")
@@ -98,8 +98,8 @@ fn apply_service_config<UR: UserRepository + 'static, H: Hasher + 'static>(
                 bearer_validator(req, credentials, config.clone())
               }
             }))
-            .route("", web::get().to(get_users::<UR>))
-            .route("", web::post().to(create_user::<UR, H>)),
+            .route("/", web::get().to(get_users::<UR>))
+            .route("/", web::post().to(create_user::<UR, H>)),
         ),
     );
 }
@@ -189,7 +189,6 @@ mod tests {
       .to_request();
 
     let create_resp = test::call_service(&app, create_req).await;
-    println!("{:?}", create_resp.response().body());
     assert!(create_resp.status().is_success(), "Create user failed");
 
     // 2) Login
@@ -242,8 +241,6 @@ mod tests {
       serde_json::from_str(&access_token_body_str)
         .expect("Failed to parse response JSON");
 
-    println!("access_token_rto {:?}", access_token_rto);
-    println!("login_rto {:?}", login_rto);
     assert!(access_token_rto != login_rto);
   }
 }
