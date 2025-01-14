@@ -42,4 +42,4 @@ ENV PORT=3000
 EXPOSE 3000
 
 # Command to run the application
-CMD ["./taille-auth"]
+CMD ["./taille-auth", "--port", "$PORT"]
