@@ -7,10 +7,10 @@ use actix_web::http::header;
 use actix_web::{web, HttpResponse, Responder};
 use chrono::Utc;
 use dto::create_user_dto::CreateUserDto;
-use nanoid::nanoid;
 use rto::find_user_rto::FindUserRto;
 use validator::Validate;
 
+use crate::custom_nanoid;
 use crate::shared::hash_worker::Hasher;
 use crate::shared::http_error::HttpError;
 use crate::shared::rto::created_rto::CreatedRto;
@@ -108,7 +108,7 @@ fn internal_server_error() -> HttpResponse {
 impl User {
   fn from(dto: CreateUserDto, password_hash: String) -> Self {
     Self {
-      uuid: nanoid!(),
+      uuid: custom_nanoid(),
       email: dto.email,
       user_name: dto.user_name,
       password_hash,
@@ -138,20 +138,18 @@ mod tests {
     locales::EN,
     Fake,
   };
-  use nanoid::nanoid;
   use rayon::ThreadPoolBuilder;
   use repository::user_repository::tests::InMemoryUserRepository;
 
   use crate::{
-    helpers::tests::{http_request, parse_http_response},
-    shared::{hash_worker::HashWorker, role::Role},
+    custom_nanoid, helpers::tests::{http_request, parse_http_response}, shared::{hash_worker::HashWorker, role::Role}
   };
 
   use super::*;
 
   #[actix_web::test]
   async fn test_create_user_successful() {
-    let jwt_secret = nanoid!();
+    let jwt_secret = custom_nanoid();
 
     let dto = CreateUserDto {
       email: SafeEmail().fake(),
@@ -189,7 +187,7 @@ mod tests {
 
   #[actix_web::test]
   async fn test_create_user_already_exists() {
-    let jwt_secret = nanoid!();
+    let jwt_secret = custom_nanoid();
 
     let dto = CreateUserDto {
       email: SafeEmail().fake(),
@@ -228,7 +226,7 @@ mod tests {
 
   #[actix_web::test]
   async fn test_create_user_validation_failure() {
-    let jwt_secret = nanoid!();
+    let jwt_secret = custom_nanoid();
 
     let dto = CreateUserDto {
       email: "invalid_email".to_string(),
@@ -269,7 +267,7 @@ mod tests {
 
   #[actix_web::test]
   async fn test_get_users() {
-    let jwt_secret = nanoid!();
+    let jwt_secret = custom_nanoid();
 
     let users_data = vec![
       User::from(
@@ -316,7 +314,7 @@ mod tests {
 
   #[actix_web::test]
   async fn test_get_users_empty() {
-    let jwt_secret = nanoid!();
+    let jwt_secret = custom_nanoid();
 
     let users = Arc::new(RwLock::new(Vec::new()));
 

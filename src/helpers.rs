@@ -1,13 +1,12 @@
 #[cfg(test)]
 pub mod tests {
-  use crate::shared::role::Role;
+  use crate::{custom_nanoid, shared::role::Role};
   use actix_web::{
     http::{header::HeaderValue, StatusCode},
     HttpRequest, Responder,
   };
   use fake::{faker::internet::en::SafeEmail, Fake};
   use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
-  use nanoid::nanoid;
   use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
   #[derive(Serialize, Deserialize)]
@@ -21,7 +20,7 @@ pub mod tests {
 
   pub fn create_fake_access_token(jwt_secret: &str) -> String {
     let fake_claims = FakeAccessTokenClaims {
-      uuid: nanoid!(),
+      uuid: custom_nanoid(),
       role: Role::Manager,
       sub: SafeEmail().fake(),
       iat: 0,

@@ -13,6 +13,7 @@ use actix_web::{web, App, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
 use auth::{access_token, auth_login};
 use rayon::ThreadPoolBuilder;
+use nanoid::nanoid;
 use shared::{
   config::Config,
   database::Database,
@@ -105,6 +106,19 @@ fn apply_service_config<UR: UserRepository + 'static, H: Hasher + 'static>(
 
 fn num_threads() -> usize {
   std::thread::available_parallelism().unwrap().get()
+}
+
+lazy_static::lazy_static! {
+  static ref CUSTOM_ALPHABET: Vec<char> = 
+    nanoid::alphabet::SAFE.iter()
+      .filter(|&&c| c != '_' && c != '-')
+      .copied()
+      .collect();
+}
+
+fn custom_nanoid() -> String {
+  // Generate a nanoid with the custom alphabet and desired size
+  nanoid!(21, &*CUSTOM_ALPHABET)
 }
 
 #[cfg(test)]
