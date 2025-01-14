@@ -3,9 +3,10 @@ use aws_sdk_dynamodb::{
   operation::{get_item::GetItemError, put_item::PutItemError},
   types::AttributeValue,
 };
+use mongodb::bson::{doc, to_document};
 use thiserror::Error;
 
-use crate::{shared::database::Database, users::model::user::User};
+use crate::{shared::database::{DynamoDatabase, MongoDatabase}, users::model::user::User};
 
 #[derive(Debug, Error)]
 pub enum UserRepositoryError {
@@ -38,6 +39,16 @@ impl FindOneProperty<'_> {
       }
     }
   }
+  fn to_mongo_key_value(&self) -> mongodb::bson::Document {
+    match self {
+      FindOneProperty::Uuid(uuid) => {
+        doc! { "uuid": uuid }
+      }
+      FindOneProperty::Email(email) => {
+        doc! { "email": email }
+      }
+    }
+  }
 }
 
 pub trait UserRepository {
@@ -49,17 +60,19 @@ pub trait UserRepository {
   async fn create(&self, user: User) -> Result<(), UserRepositoryError>;
 }
 
-pub struct UserRepositoryImpl {
-  database: Database,
+// ### DynamoDB implementation ###
+
+pub struct DynamoUserRepositoryImpl {
+  database: DynamoDatabase,
 }
 
-impl UserRepositoryImpl {
-  pub fn new(database: Database) -> Self {
+impl DynamoUserRepositoryImpl {
+  pub fn new(database: DynamoDatabase) -> Self {
     Self { database }
   }
 }
 
-impl UserRepository for UserRepositoryImpl {
+impl UserRepository for DynamoUserRepositoryImpl {
   async fn find_one<'a>(
     &self,
     property: FindOneProperty<'a>,
@@ -97,6 +110,54 @@ impl UserRepository for UserRepositoryImpl {
     Ok(())
   }
 }
+
+// ### MongoDB implementation ###
+
+pub struct MongoUserRepositoryImpl {
+  database: MongoDatabase,
+}
+
+impl MongoUserRepositoryImpl {
+  pub fn new(database: MongoDatabase) -> Self {
+    Self { database }
+  }
+}
+
+impl UserRepository for MongoUserRepositoryImpl {
+  async fn find_one<'a>(
+    &self,
+    property: FindOneProperty<'a>,
+  ) -> Result<User, UserRepositoryError> {
+    let result: Option<User> = self
+      .database
+      .mongo_client
+      .database("test")
+      .collection("users")
+      .find_one(property.to_mongo_key_value())
+      .await
+      .unwrap(); // TODO: Remove unwrap
+    if let Some(user) = result {
+      return Ok(user);
+    }
+    Err(UserRepositoryError::Other(String::from("No item")))
+  }
+
+  async fn find_all(&self) -> Result<Vec<User>, UserRepositoryError> {
+    Ok(Vec::new())
+  }
+
+  async fn create(&self, user: User) -> Result<(), UserRepositoryError> {
+    _ = self
+      .database
+      .mongo_client
+      .database("test")
+      .collection("users")
+      .insert_one(to_document(&user).unwrap())
+      .await;
+    Ok(())
+  }
+}
+
 
 #[cfg(test)]
 pub mod tests {

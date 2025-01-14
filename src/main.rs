@@ -16,13 +16,13 @@ use rayon::ThreadPoolBuilder;
 use nanoid::nanoid;
 use shared::{
   config::Config,
-  database::Database,
+  database::MongoDatabase,
   hash_worker::{HashWorker, Hasher},
   middleware::master_key_middleware::bearer_validator,
 };
 use users::{
   create_user, get_users,
-  repository::user_repository::{UserRepository, UserRepositoryImpl},
+  repository::user_repository::{UserRepository, MongoUserRepositoryImpl},
 };
 
 #[actix_web::main]
@@ -31,8 +31,8 @@ async fn main() -> std::io::Result<()> {
   println!("Listening on http://{}", server_address);
 
   let config = Config::default().await;
-  let database = Database::new(&config);
-  let user_repository = Arc::new(UserRepositoryImpl::new(database));
+  let database = MongoDatabase::new(&config).await;
+  let user_repository = Arc::new(MongoUserRepositoryImpl::new(database));
 
   let thread_pool = ThreadPoolBuilder::new()
     .num_threads(max(num_threads() - 2, 1))
