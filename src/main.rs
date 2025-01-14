@@ -16,7 +16,7 @@ use nanoid::nanoid;
 use rayon::ThreadPoolBuilder;
 use shared::{
   config::Config,
-  database::{Database, MongoDatabase},
+  database::{Database, InMemoryDatabase},
   hash_worker::{HashWorker, Hasher},
   middleware::master_key_middleware::bearer_validator,
 };
@@ -28,13 +28,9 @@ use users::{
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
   let config = Config::default().await;
-  let database = MongoDatabase::new(&config).await.unwrap();
-  let user_repository = UserRepositoryImpl::<MongoDatabase>::new(database);
+  let user_repository =
+    UserRepositoryImpl::new(InMemoryDatabase::new(&config).await.unwrap());
   let user_repository = Arc::new(user_repository);
-  // let user_repository = MongoDatabase::new(&config)
-  //   .await
-  //   .map(|database| UserRepositoryImpl::new(database))
-  //   .unwrap_or_else(|| UserRepositoryImpl::<InMemoryDatabase>::new());
 
   let thread_pool = ThreadPoolBuilder::new()
     .num_threads(max(num_threads() - 2, 1))
@@ -140,7 +136,7 @@ mod tests {
     locales::EN,
     Fake,
   };
-use shared::database::InMemoryDatabase;
+  use shared::database::InMemoryDatabase;
   use std::{env, net::SocketAddr, str::FromStr, time::Duration};
   use users::repository::user_repository::UserRepositoryImpl;
 
@@ -153,11 +149,10 @@ use shared::database::InMemoryDatabase;
     let config = Config::default().await;
     let config = Arc::new(config);
 
-    let user_repository = Arc::new(
-      UserRepositoryImpl::<InMemoryDatabase>::new(
-        InMemoryDatabase::new(&config).await.unwrap()
-      )
-    );
+    let user_repository =
+      Arc::new(UserRepositoryImpl::<InMemoryDatabase>::new(
+        InMemoryDatabase::new(&config).await.unwrap(),
+      ));
 
     // Initialize the service in-memory
     let app = test::init_service(App::new().configure(|cfg| {

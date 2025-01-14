@@ -162,11 +162,10 @@ mod tests {
 
     let users = Arc::new(RwLock::new(Vec::new()));
 
-    let user_repository = UserRepositoryImpl::<InMemoryDatabase>::new(
-      InMemoryDatabase {
-        users: users.clone()
-      }
-    );
+    let user_repository =
+      UserRepositoryImpl::<InMemoryDatabase>::new(InMemoryDatabase {
+        users: users.clone(),
+      });
 
     let hasher = HashWorker::new(ThreadPoolBuilder::new().build().unwrap(), 2);
 
@@ -203,11 +202,10 @@ mod tests {
     let users =
       Arc::new(RwLock::new(vec![User::from(dto.clone(), String::new())]));
 
-    let user_repository = UserRepositoryImpl::<InMemoryDatabase>::new(
-      InMemoryDatabase {
-        users: users.clone()
-      }
-    );
+    let user_repository =
+      UserRepositoryImpl::<InMemoryDatabase>::new(InMemoryDatabase {
+        users: users.clone(),
+      });
 
     let hasher = HashWorker::new(ThreadPoolBuilder::new().build().unwrap(), 2);
 
@@ -243,11 +241,10 @@ mod tests {
 
     let users = Arc::new(RwLock::new(Vec::new()));
 
-    let user_repository = UserRepositoryImpl::<InMemoryDatabase>::new(
-      InMemoryDatabase {
-        users: users.clone()
-      }
-    );
+    let user_repository =
+      UserRepositoryImpl::<InMemoryDatabase>::new(InMemoryDatabase {
+        users: users.clone(),
+      });
 
     let hasher = HashWorker::new(ThreadPoolBuilder::new().build().unwrap(), 2);
 
@@ -300,11 +297,10 @@ mod tests {
 
     let users = Arc::new(RwLock::new(users_data.clone()));
 
-    let user_repository = UserRepositoryImpl::<InMemoryDatabase>::new(
-      InMemoryDatabase {
-        users: users.clone()
-      }
-    );
+    let user_repository =
+      UserRepositoryImpl::<InMemoryDatabase>::new(InMemoryDatabase {
+        users: users.clone(),
+      });
 
     let request: HttpRequest = http_request(&jwt_secret);
 
@@ -328,11 +324,10 @@ mod tests {
 
     let users = Arc::new(RwLock::new(Vec::new()));
 
-    let user_repository = UserRepositoryImpl::<InMemoryDatabase>::new(
-      InMemoryDatabase {
-        users: users.clone()
-      }
-    );
+    let user_repository =
+      UserRepositoryImpl::<InMemoryDatabase>::new(InMemoryDatabase {
+        users: users.clone(),
+      });
 
     let request: HttpRequest = http_request(&jwt_secret);
 

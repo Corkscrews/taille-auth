@@ -7,7 +7,9 @@ use mongodb::bson::{doc, to_document};
 use thiserror::Error;
 
 use crate::{
-  shared::{config::Config, database::{Database, DynamoDatabase, InMemoryDatabase, MongoDatabase}},
+  shared::database::{
+    Database, DynamoDatabase, InMemoryDatabase, MongoDatabase,
+  },
   users::model::user::User,
 };
 
@@ -64,13 +66,11 @@ pub trait UserRepository {
 }
 
 pub struct UserRepositoryImpl<DB: Database> {
-  database: DB
+  database: DB,
 }
 
-// ### DynamoDB implementation ###
-
-impl UserRepositoryImpl<DynamoDatabase> {
-  pub fn new(database: DynamoDatabase) -> Self {
+impl<DB: Database> UserRepositoryImpl<DB> {
+  pub fn new(database: DB) -> Self {
     Self { database }
   }
 }
@@ -116,12 +116,6 @@ impl UserRepository for UserRepositoryImpl<DynamoDatabase> {
 
 // ### MongoDB implementation ###
 
-impl UserRepositoryImpl<MongoDatabase> {
-  pub fn new(database: MongoDatabase) -> Self {
-    Self { database }
-  }
-}
-
 impl UserRepository for UserRepositoryImpl<MongoDatabase> {
   async fn find_one<'a>(
     &self,
@@ -157,29 +151,24 @@ impl UserRepository for UserRepositoryImpl<MongoDatabase> {
   }
 }
 
-impl UserRepositoryImpl<InMemoryDatabase> {
-  pub fn new(database: InMemoryDatabase) -> Self {
-    Self {
-      database
-    }
-  }
-}
-
 impl UserRepository for UserRepositoryImpl<InMemoryDatabase> {
   async fn find_one<'a>(
     &self,
     property: FindOneProperty<'a>,
   ) -> Result<User, UserRepositoryError> {
-    let users = self.database.users.read().unwrap(); // Acquire read lock
-
-    let result = users
+    // Acquire read lock
+    self
+      .database
+      .users
+      .read()
+      .unwrap()
       .iter()
       .find(|user| match property {
         FindOneProperty::Uuid(uuid) => user.uuid == uuid,
         FindOneProperty::Email(email) => user.email == email,
       })
-      .cloned();
-    result.ok_or(UserRepositoryError::Other(String::new()))
+      .cloned()
+      .ok_or(UserRepositoryError::Other(String::new()))
   }
 
   async fn create(&self, user: User) -> Result<(), UserRepositoryError> {
@@ -192,4 +181,3 @@ impl UserRepository for UserRepositoryImpl<InMemoryDatabase> {
     Ok(self.database.users.read().unwrap().clone())
   }
 }
-

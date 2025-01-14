@@ -1,4 +1,7 @@
-use std::{env, sync::{Arc, RwLock}};
+use std::{
+  env,
+  sync::{Arc, RwLock},
+};
 
 use crate::users::model::user::User;
 
@@ -33,15 +36,13 @@ pub struct MongoDatabase {
 }
 
 impl Database for MongoDatabase {
-  async fn new(config: &Config) -> Option<Self> {
+  async fn new(_config: &Config) -> Option<Self> {
     if let Ok(mongo_url) = env::var("MONGO_URL") {
       println!("Starting MongoDB client at {}", mongo_url);
-      return Some(
-        Self {
-          // Create a new MongoDB client with the parsed options
-          client: Client::with_uri_str(mongo_url).await.unwrap(),
-        }
-      );
+      return Some(Self {
+        // Create a new MongoDB client with the parsed options
+        client: Client::with_uri_str(mongo_url).await.unwrap(),
+      });
     }
     None
   }
@@ -52,7 +53,7 @@ pub struct InMemoryDatabase {
 }
 
 impl Database for InMemoryDatabase {
-  async fn new(config: &Config) -> Option<Self> {
+  async fn new(_config: &Config) -> Option<Self> {
     Some(Self {
       users: Arc::new(RwLock::new(Vec::new())),
     })
