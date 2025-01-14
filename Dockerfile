@@ -4,6 +4,8 @@ FROM rust:latest AS builder
 # Set the working directory inside the container
 WORKDIR /usr/src/app
 
+RUN ls
+
 # Copy the Cargo.toml and Cargo.lock files first to optimize caching
 COPY Cargo.toml Cargo.lock ./
 
