@@ -139,7 +139,7 @@ mod tests {
     Fake,
   };
   use rayon::ThreadPoolBuilder;
-  use repository::user_repository::tests::InMemoryUserRepository;
+  use repository::user_repository::InMemoryUserRepositoryImpl;
 
   use crate::{
     custom_nanoid,
@@ -162,7 +162,7 @@ mod tests {
 
     let users = Arc::new(RwLock::new(Vec::new()));
 
-    let user_repository = InMemoryUserRepository {
+    let user_repository = InMemoryUserRepositoryImpl {
       users: users.clone(),
     };
 
@@ -201,7 +201,7 @@ mod tests {
     let users =
       Arc::new(RwLock::new(vec![User::from(dto.clone(), String::new())]));
 
-    let user_repository = InMemoryUserRepository {
+    let user_repository = InMemoryUserRepositoryImpl {
       users: users.clone(),
     };
 
@@ -239,7 +239,7 @@ mod tests {
 
     let users = Arc::new(RwLock::new(Vec::new()));
 
-    let user_repository = InMemoryUserRepository {
+    let user_repository = InMemoryUserRepositoryImpl {
       users: users.clone(),
     };
 
@@ -294,7 +294,7 @@ mod tests {
 
     let users = Arc::new(RwLock::new(users_data.clone()));
 
-    let user_repository = InMemoryUserRepository {
+    let user_repository = InMemoryUserRepositoryImpl {
       users: users.clone(),
     };
 
@@ -320,7 +320,7 @@ mod tests {
 
     let users = Arc::new(RwLock::new(Vec::new()));
 
-    let user_repository = InMemoryUserRepository {
+    let user_repository = InMemoryUserRepositoryImpl {
       users: users.clone(),
     };
 

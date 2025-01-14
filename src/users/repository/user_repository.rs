@@ -7,7 +7,7 @@ use mongodb::bson::{doc, to_document};
 use thiserror::Error;
 
 use crate::{
-  shared::database::{DynamoDatabase, MongoDatabase},
+  shared::{config::Config, database::{Database, DynamoDatabase, InMemoryDatabase, MongoDatabase}},
   users::model::user::User,
 };
 
@@ -63,19 +63,19 @@ pub trait UserRepository {
   async fn create(&self, user: User) -> Result<(), UserRepositoryError>;
 }
 
-// ### DynamoDB implementation ###
-
-pub struct DynamoUserRepositoryImpl {
-  database: DynamoDatabase,
+pub struct UserRepositoryImpl<D: Database> {
+  database: D
 }
 
-impl DynamoUserRepositoryImpl {
+// ### DynamoDB implementation ###
+
+impl UserRepositoryImpl<DynamoDatabase> {
   pub fn new(database: DynamoDatabase) -> Self {
     Self { database }
   }
 }
 
-impl UserRepository for DynamoUserRepositoryImpl {
+impl UserRepository for UserRepositoryImpl<DynamoDatabase> {
   async fn find_one<'a>(
     &self,
     property: FindOneProperty<'a>,
@@ -83,7 +83,7 @@ impl UserRepository for DynamoUserRepositoryImpl {
     let (key, value) = property.to_key_value();
     let result = self
       .database
-      .dynamo_client
+      .client
       .get_item()
       .table_name("users")
       .key(key, value)
@@ -104,7 +104,7 @@ impl UserRepository for DynamoUserRepositoryImpl {
     let item = serde_dynamo::to_item(&user).unwrap();
     self
       .database
-      .dynamo_client
+      .client
       .put_item()
       .table_name("users")
       .set_item(Some(item))
@@ -116,24 +116,20 @@ impl UserRepository for DynamoUserRepositoryImpl {
 
 // ### MongoDB implementation ###
 
-pub struct MongoUserRepositoryImpl {
-  database: MongoDatabase,
-}
-
-impl MongoUserRepositoryImpl {
+impl UserRepositoryImpl<MongoDatabase> {
   pub fn new(database: MongoDatabase) -> Self {
     Self { database }
   }
 }
 
-impl UserRepository for MongoUserRepositoryImpl {
+impl UserRepository for UserRepositoryImpl<MongoDatabase> {
   async fn find_one<'a>(
     &self,
     property: FindOneProperty<'a>,
   ) -> Result<User, UserRepositoryError> {
     let result: Option<User> = self
       .database
-      .mongo_client
+      .client
       .database("test")
       .collection("users")
       .find_one(property.to_mongo_key_value())
@@ -152,7 +148,7 @@ impl UserRepository for MongoUserRepositoryImpl {
   async fn create(&self, user: User) -> Result<(), UserRepositoryError> {
     _ = self
       .database
-      .mongo_client
+      .client
       .database("test")
       .collection("users")
       .insert_one(to_document(&user).unwrap())
@@ -161,49 +157,44 @@ impl UserRepository for MongoUserRepositoryImpl {
   }
 }
 
-#[cfg(test)]
-pub mod tests {
-  use super::{FindOneProperty, UserRepository, UserRepositoryError};
-  use crate::users::model::user::User;
-  use std::sync::{Arc, RwLock};
-
-  pub struct InMemoryUserRepository {
-    pub users: Arc<RwLock<Vec<User>>>,
-  }
-
-  impl InMemoryUserRepository {
-    pub fn new() -> Self {
-      Self {
-        users: Arc::new(RwLock::new(Vec::new())),
-      }
-    }
-  }
-
-  impl UserRepository for InMemoryUserRepository {
-    async fn find_one<'a>(
-      &self,
-      property: FindOneProperty<'a>,
-    ) -> Result<User, UserRepositoryError> {
-      let users = self.users.read().unwrap(); // Acquire read lock
-
-      let result = users
-        .iter()
-        .find(|user| match property {
-          FindOneProperty::Uuid(uuid) => user.uuid == uuid,
-          FindOneProperty::Email(email) => user.email == email,
-        })
-        .cloned();
-      result.ok_or(UserRepositoryError::Other(String::new()))
-    }
-
-    async fn create(&self, user: User) -> Result<(), UserRepositoryError> {
-      let mut users = self.users.write().unwrap(); // Acquire write lock
-      users.push(user.clone());
-      Ok(())
-    }
-
-    async fn find_all(&self) -> Result<Vec<User>, UserRepositoryError> {
-      Ok(self.users.read().unwrap().clone())
+impl UserRepositoryImpl<InMemoryDatabase> {
+  pub fn new() -> Self {
+    Self {
+      database: InMemoryDatabase::new(&Config { 
+        server_address: todo!(), 
+        master_key: todo!(), 
+        jwt_secret: todo!(), 
+        aws_config: todo!() 
+      }).await
     }
   }
 }
+
+impl UserRepository for UserRepositoryImpl<InMemoryDatabase> {
+  async fn find_one<'a>(
+    &self,
+    property: FindOneProperty<'a>,
+  ) -> Result<User, UserRepositoryError> {
+    let users = self.database.users.read().unwrap(); // Acquire read lock
+
+    let result = users
+      .iter()
+      .find(|user| match property {
+        FindOneProperty::Uuid(uuid) => user.uuid == uuid,
+        FindOneProperty::Email(email) => user.email == email,
+      })
+      .cloned();
+    result.ok_or(UserRepositoryError::Other(String::new()))
+  }
+
+  async fn create(&self, user: User) -> Result<(), UserRepositoryError> {
+    let mut users = self.database.users.write().unwrap(); // Acquire write lock
+    users.push(user.clone());
+    Ok(())
+  }
+
+  async fn find_all(&self) -> Result<Vec<User>, UserRepositoryError> {
+    Ok(self.database.users.read().unwrap().clone())
+  }
+}
+
