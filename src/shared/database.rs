@@ -32,7 +32,6 @@ impl MongoDatabase {
   pub async fn new(config: &Config) -> Self {
     let mongo_url = env::var("MONGO_URL")
       .expect("MONGO_URL environment variable not set");
-
     Self {
       // Create a new MongoDB client with the parsed options
       mongo_client: Client::with_uri_str(mongo_url).await.unwrap()

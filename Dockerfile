@@ -4,11 +4,8 @@ FROM alpine:latest
 # Install required libraries for Rust binaries
 RUN apk add --no-cache libssl3 ca-certificates
 
-# Set the working directory in the final image
-WORKDIR /app
-
 # Copy the pre-built binary into the image
-COPY ./target/release/taille-auth /app/taille-auth
+COPY ./target/release/taille-auth /taille-auth
 
 # List the files in the working directory
 RUN ls
