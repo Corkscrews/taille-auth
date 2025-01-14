@@ -36,7 +36,7 @@ jobs:
       - name: Install Railway CLI
         run: |
           bash <(curl -fsSL cli.new)
-          ls
+          ls ./target/release
 
       # Deploy to Railway
       - name: Deploy to Railway
