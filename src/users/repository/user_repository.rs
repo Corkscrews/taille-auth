@@ -63,8 +63,8 @@ pub trait UserRepository {
   async fn create(&self, user: User) -> Result<(), UserRepositoryError>;
 }
 
-pub struct UserRepositoryImpl<D: Database> {
-  database: D
+pub struct UserRepositoryImpl<DB: Database> {
+  database: DB
 }
 
 // ### DynamoDB implementation ###
@@ -158,14 +158,9 @@ impl UserRepository for UserRepositoryImpl<MongoDatabase> {
 }
 
 impl UserRepositoryImpl<InMemoryDatabase> {
-  pub fn new() -> Self {
+  pub fn new(database: InMemoryDatabase) -> Self {
     Self {
-      database: InMemoryDatabase::new(&Config { 
-        server_address: todo!(), 
-        master_key: todo!(), 
-        jwt_secret: todo!(), 
-        aws_config: todo!() 
-      }).await
+      database
     }
   }
 }

@@ -30,6 +30,7 @@ async fn main() -> std::io::Result<()> {
   let config = Config::default().await;
   let database = MongoDatabase::new(&config).await.unwrap();
   let user_repository = UserRepositoryImpl::<MongoDatabase>::new(database);
+  let user_repository = Arc::new(user_repository);
   // let user_repository = MongoDatabase::new(&config)
   //   .await
   //   .map(|database| UserRepositoryImpl::new(database))
@@ -139,6 +140,7 @@ mod tests {
     locales::EN,
     Fake,
   };
+use shared::database::InMemoryDatabase;
   use std::{env, net::SocketAddr, str::FromStr, time::Duration};
   use users::repository::user_repository::UserRepositoryImpl;
 
@@ -150,6 +152,12 @@ mod tests {
 
     let config = Config::default().await;
     let config = Arc::new(config);
+
+    let user_repository = Arc::new(
+      UserRepositoryImpl::<InMemoryDatabase>::new(
+        InMemoryDatabase::new(&config).await.unwrap()
+      )
+    );
 
     // Initialize the service in-memory
     let app = test::init_service(App::new().configure(|cfg| {
@@ -164,7 +172,7 @@ mod tests {
             .unwrap(),
           2,
         )),
-        Arc::new(UserRepositoryImpl::<InMemoryDatabase>::new()),
+        user_repository,
       )
     }))
     .await;

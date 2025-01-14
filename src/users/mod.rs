@@ -139,12 +139,12 @@ mod tests {
     Fake,
   };
   use rayon::ThreadPoolBuilder;
-  use repository::user_repository::InMemoryUserRepositoryImpl;
+  use repository::user_repository::UserRepositoryImpl;
 
   use crate::{
     custom_nanoid,
     helpers::tests::{http_request, parse_http_response},
-    shared::{hash_worker::HashWorker, role::Role},
+    shared::{database::InMemoryDatabase, hash_worker::HashWorker, role::Role},
   };
 
   use super::*;
@@ -162,9 +162,11 @@ mod tests {
 
     let users = Arc::new(RwLock::new(Vec::new()));
 
-    let user_repository = InMemoryUserRepositoryImpl {
-      users: users.clone(),
-    };
+    let user_repository = UserRepositoryImpl::<InMemoryDatabase>::new(
+      InMemoryDatabase {
+        users: users.clone()
+      }
+    );
 
     let hasher = HashWorker::new(ThreadPoolBuilder::new().build().unwrap(), 2);
 
@@ -201,9 +203,11 @@ mod tests {
     let users =
       Arc::new(RwLock::new(vec![User::from(dto.clone(), String::new())]));
 
-    let user_repository = InMemoryUserRepositoryImpl {
-      users: users.clone(),
-    };
+    let user_repository = UserRepositoryImpl::<InMemoryDatabase>::new(
+      InMemoryDatabase {
+        users: users.clone()
+      }
+    );
 
     let hasher = HashWorker::new(ThreadPoolBuilder::new().build().unwrap(), 2);
 
@@ -239,9 +243,11 @@ mod tests {
 
     let users = Arc::new(RwLock::new(Vec::new()));
 
-    let user_repository = InMemoryUserRepositoryImpl {
-      users: users.clone(),
-    };
+    let user_repository = UserRepositoryImpl::<InMemoryDatabase>::new(
+      InMemoryDatabase {
+        users: users.clone()
+      }
+    );
 
     let hasher = HashWorker::new(ThreadPoolBuilder::new().build().unwrap(), 2);
 
@@ -294,9 +300,11 @@ mod tests {
 
     let users = Arc::new(RwLock::new(users_data.clone()));
 
-    let user_repository = InMemoryUserRepositoryImpl {
-      users: users.clone(),
-    };
+    let user_repository = UserRepositoryImpl::<InMemoryDatabase>::new(
+      InMemoryDatabase {
+        users: users.clone()
+      }
+    );
 
     let request: HttpRequest = http_request(&jwt_secret);
 
@@ -320,9 +328,11 @@ mod tests {
 
     let users = Arc::new(RwLock::new(Vec::new()));
 
-    let user_repository = InMemoryUserRepositoryImpl {
-      users: users.clone(),
-    };
+    let user_repository = UserRepositoryImpl::<InMemoryDatabase>::new(
+      InMemoryDatabase {
+        users: users.clone()
+      }
+    );
 
     let request: HttpRequest = http_request(&jwt_secret);
 
