@@ -38,8 +38,7 @@ COPY --from=builder /usr/src/app/target/release/taille-auth /app/taille-auth
 RUN chmod +x /app/taille-auth
 
 # Expose the port for Railway (use the $PORT environment variable)
-ENV PORT=3000
 EXPOSE 3000
 
 # Command to run the application
-CMD ["./taille-auth", "--port", "$PORT"]
+CMD ["./taille-auth"]
