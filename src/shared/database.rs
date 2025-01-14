@@ -20,21 +20,20 @@ impl DynamoDatabase {
   }
 }
 
-use mongodb::{ 
-	bson::{doc, Document}, options::ClientOptions, Client, Collection 
-};
+use mongodb::Client;
 
 pub struct MongoDatabase {
-  pub mongo_client: mongodb::Client
+  pub mongo_client: mongodb::Client,
 }
 
 impl MongoDatabase {
   pub async fn new(config: &Config) -> Self {
-    let mongo_url = env::var("MONGO_URL")
-      .expect("MONGO_URL environment variable not set");
+    let mongo_url =
+      env::var("MONGO_URL").expect("MONGO_URL environment variable not set");
+    println!("Starting MongoDB client at {}", mongo_url);
     Self {
       // Create a new MongoDB client with the parsed options
-      mongo_client: Client::with_uri_str(mongo_url).await.unwrap()
+      mongo_client: Client::with_uri_str(mongo_url).await.unwrap(),
     }
   }
 }

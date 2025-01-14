@@ -6,7 +6,10 @@ use aws_sdk_dynamodb::{
 use mongodb::bson::{doc, to_document};
 use thiserror::Error;
 
-use crate::{shared::database::{DynamoDatabase, MongoDatabase}, users::model::user::User};
+use crate::{
+  shared::database::{DynamoDatabase, MongoDatabase},
+  users::model::user::User,
+};
 
 #[derive(Debug, Error)]
 pub enum UserRepositoryError {
@@ -157,7 +160,6 @@ impl UserRepository for MongoUserRepositoryImpl {
     Ok(())
   }
 }
-
 
 #[cfg(test)]
 pub mod tests {

@@ -142,7 +142,9 @@ mod tests {
   use repository::user_repository::tests::InMemoryUserRepository;
 
   use crate::{
-    custom_nanoid, helpers::tests::{http_request, parse_http_response}, shared::{hash_worker::HashWorker, role::Role}
+    custom_nanoid,
+    helpers::tests::{http_request, parse_http_response},
+    shared::{hash_worker::HashWorker, role::Role},
   };
 
   use super::*;

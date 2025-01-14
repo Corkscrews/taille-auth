@@ -12,8 +12,8 @@ use actix_governor::{
 use actix_web::{web, App, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
 use auth::{access_token, auth_login};
-use rayon::ThreadPoolBuilder;
 use nanoid::nanoid;
+use rayon::ThreadPoolBuilder;
 use shared::{
   config::Config,
   database::MongoDatabase,
@@ -22,7 +22,7 @@ use shared::{
 };
 use users::{
   create_user, get_users,
-  repository::user_repository::{UserRepository, MongoUserRepositoryImpl},
+  repository::user_repository::{MongoUserRepositoryImpl, UserRepository},
 };
 
 #[actix_web::main]
@@ -109,7 +109,7 @@ fn num_threads() -> usize {
 }
 
 lazy_static::lazy_static! {
-  static ref CUSTOM_ALPHABET: Vec<char> = 
+  static ref CUSTOM_ALPHABET: Vec<char> =
     nanoid::alphabet::SAFE.iter()
       .filter(|&&c| c != '_' && c != '-')
       .copied()
