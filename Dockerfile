@@ -39,6 +39,8 @@ RUN chmod +x /bin/taille-auth
 # Expose the port for Railway
 EXPOSE 3000
 
+RUN echo "starting server (from docker)"
+
 # Command to run the application
-ENTRYPOINT ["tini", "--"]
+# ENTRYPOINT ["tini", "--"]
 CMD ["/bin/taille-auth"]

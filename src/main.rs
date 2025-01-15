@@ -15,10 +15,7 @@ use auth::{access_token, auth_login};
 use nanoid::nanoid;
 use rayon::ThreadPoolBuilder;
 use shared::{
-  config::Config,
-  database::{Database, InMemoryDatabase},
-  hash_worker::{HashWorker, Hasher},
-  middleware::master_key_middleware::bearer_validator,
+  check_health, config::Config, database::{Database, InMemoryDatabase}, hash_worker::{HashWorker, Hasher}, middleware::master_key_middleware::bearer_validator
 };
 use users::{
   create_user, get_users,
@@ -104,7 +101,11 @@ fn apply_service_config<UR: UserRepository + 'static, H: Hasher + 'static>(
             }))
             .route("", web::get().to(get_users::<UR>))
             .route("", web::post().to(create_user::<UR, H>)),
-        ),
+        )
+        .service(
+          web::scope("/health")
+            .route("", web::get().to(check_health))
+        )
     );
 }
 
