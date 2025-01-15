@@ -10,7 +10,7 @@ pub struct Config {
 impl Config {
   pub async fn default() -> Self {
     let server_address =
-      env::var("ADDRESS").unwrap_or_else(|_| "127.0.0.1:3000".to_string());
+      env::var("ADDRESS").unwrap_or_else(|_| "0.0.0.0:3000".to_string());
     let master_key =
       env::var("MASTER_KEY").unwrap_or_else(|_| "DEV_MASTER_KEY".to_string());
     let jwt_secret =
