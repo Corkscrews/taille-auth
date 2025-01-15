@@ -34,7 +34,7 @@ pub enum FindOneProperty<'a> {
 }
 
 impl FindOneProperty<'_> {
-  fn to_key_value(&self) -> (&str, AttributeValue) {
+  fn to_dynamo_key_value(&self) -> (&str, AttributeValue) {
     match self {
       FindOneProperty::Uuid(uuid) => {
         ("uuid", AttributeValue::S(uuid.to_string()))
@@ -80,7 +80,7 @@ impl UserRepository for UserRepositoryImpl<DynamoDatabase> {
     &self,
     property: FindOneProperty<'a>,
   ) -> Result<User, UserRepositoryError> {
-    let (key, value) = property.to_key_value();
+    let (key, value) = property.to_dynamo_key_value();
     let result = self
       .database
       .client

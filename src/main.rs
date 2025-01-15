@@ -3,7 +3,7 @@ mod helpers;
 mod shared;
 mod users;
 
-use std::{cmp::max, sync::Arc};
+use std::{cmp::max, sync::{Arc, LazyLock}};
 
 use actix_governor::{
   governor::{clock::QuantaInstant, middleware::NoOpMiddleware},
@@ -27,9 +27,11 @@ use users::{
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+  println!("Starting taille-auth...");
   let config = Config::default().await;
-  let user_repository =
-    UserRepositoryImpl::new(InMemoryDatabase::new(&config).await.unwrap());
+  let user_repository = UserRepositoryImpl::new(
+    InMemoryDatabase::new(&config).await.unwrap()
+  );
   let user_repository = Arc::new(user_repository);
 
   let thread_pool = ThreadPoolBuilder::new()
@@ -48,11 +50,10 @@ async fn main() -> std::io::Result<()> {
     .unwrap();
 
   let server_address = config.server_address.clone();
-  println!("Listening on http://{}", server_address);
 
   let config = Arc::new(config);
 
-  HttpServer::new(move || {
+  let http_server = HttpServer::new(move || {
     App::new().configure(|cfg| {
       apply_service_config(
         cfg,
@@ -64,9 +65,11 @@ async fn main() -> std::io::Result<()> {
     })
   })
   .workers(2)
-  .bind(server_address)?
-  .run()
-  .await
+  .bind(server_address.clone())?
+  .run();
+
+  println!("Listening on http://{}", server_address);
+  http_server.await
 }
 
 // Function to initialize the App
@@ -109,13 +112,12 @@ fn num_threads() -> usize {
   std::thread::available_parallelism().unwrap().get()
 }
 
-lazy_static::lazy_static! {
-  static ref CUSTOM_ALPHABET: Vec<char> =
-    nanoid::alphabet::SAFE.iter()
-      .filter(|&&c| c != '_' && c != '-')
-      .copied()
-      .collect();
-}
+static CUSTOM_ALPHABET: LazyLock<Vec<char>> = LazyLock::new(|| {
+  nanoid::alphabet::SAFE.iter()
+    .filter(|&&c| c != '_' && c != '-')
+    .copied()
+    .collect()
+});
 
 fn custom_nanoid() -> String {
   // Generate a nanoid with the custom alphabet and desired size

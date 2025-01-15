@@ -1,13 +1,10 @@
 use std::env;
 
-use aws_config::SdkConfig;
-
 #[derive(Clone, Debug)]
 pub struct Config {
   pub server_address: String,
   pub master_key: String,
   pub jwt_secret: String,
-  pub aws_config: Option<SdkConfig>,
 }
 
 impl Config {
@@ -21,8 +18,7 @@ impl Config {
     Self {
       server_address,
       master_key,
-      jwt_secret,
-      aws_config: Some(aws_config::load_from_env().await),
+      jwt_secret
     }
   }
 }

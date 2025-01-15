@@ -16,13 +16,9 @@ pub struct DynamoDatabase {
 }
 
 impl Database for DynamoDatabase {
-  async fn new(config: &Config) -> Option<Self> {
-    let client = aws_sdk_dynamodb::Client::new(
-      config
-        .aws_config
-        .as_ref()
-        .expect("Database must be initialized with AWS SDK"),
-    );
+  async fn new(_config: &Config) -> Option<Self> {
+    let aws_config = aws_config::load_from_env().await;
+    let client = aws_sdk_dynamodb::Client::new(&aws_config);
     Some(Self {
       client: Arc::new(client),
     })
