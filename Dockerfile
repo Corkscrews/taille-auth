@@ -1,3 +1,18 @@
+# Use cargo-chef to prepare the recipe for the dependencies
+FROM rust:alpine3.20 AS planner
+
+WORKDIR /
+
+RUN apk add build-base musl-dev openssl-dev
+
+# Install cargo chef dependency.
+RUN cargo install cargo-chef
+
+COPY . .
+
+# Now prepare the crates for release mode
+RUN cargo chef prepare --recipe-path recipe.json
+
 # Use an official Rust image as the base image for building
 FROM rust:alpine3.20 AS builder
 
@@ -6,11 +21,13 @@ WORKDIR /
 
 RUN apk add build-base musl-dev openssl-dev
 
-# Copy the Cargo.toml and Cargo.lock files first (for dependency caching)
-COPY Cargo.toml Cargo.lock ./
+RUN cargo install cargo-chef
 
-# Create a dummy main.rs to prebuild dependencies
-RUN mkdir -p src && echo "fn main() {}" > src/main.rs
+# Copy the recipe from the planner
+COPY --from=planner /recipe.json recipe.json
+
+# Build dependencies - this is the caching Docker layer!
+RUN cargo chef cook --release --recipe-path recipe.json
 
 # Pre-build dependencies
 RUN cargo build --release
