@@ -46,7 +46,7 @@ async fn main() -> std::io::Result<()> {
     .finish()
     .unwrap();
 
-  let host = config.host.clone();
+  let address = config.address.clone();
 
   let config = Arc::new(config);
 
@@ -62,10 +62,10 @@ async fn main() -> std::io::Result<()> {
     })
   })
   .workers(2)
-  .bind(host.clone())?
+  .bind(address.clone())?
   .run();
 
-  println!("Listening on http://{}", host);
+  println!("Listening on http://{}", address);
   http_server.await
 }
 
