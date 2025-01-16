@@ -1,5 +1,12 @@
 use async_trait::async_trait;
 use bcrypt::{hash, verify, BcryptError, DEFAULT_COST};
+// use scrypt::{
+//   password_hash::{
+//       rand_core::OsRng,
+//       PasswordHash, PasswordHasher, PasswordVerifier, SaltString
+//   },
+//   Scrypt
+// };
 use flume;
 use rayon::ThreadPool;
 use std::sync::Arc;
@@ -9,6 +16,8 @@ use thiserror::Error;
 pub enum HashWorkerError {
   #[error("Bcrypt error: {0}")]
   Bcrypt(#[from] BcryptError),
+  // #[error("Scrypt error: {0}")]
+  // Scrypt(#[from] scrypt::password_hash::Error),
   #[error("Channel send error")]
   Send,
   #[error("Channel receive error")]
@@ -48,12 +57,26 @@ impl HashWorker {
                 let _ = response.send(
                   hash(password, DEFAULT_COST).map_err(HashWorkerError::from),
                 );
+                // let salt = SaltString::generate(&mut OsRng);
+                // let _ = response.send(
+                //   Scrypt.hash_password(password.as_bytes(), &salt)
+                //     .map(|result| result.to_string())
+                //     .map_err(HashWorkerError::from)
+                // );
               }
               WorkOrder::Verify(password, hashed_password, response) => {
                 let _ = response.send(
                   verify(password, &hashed_password)
                     .map_err(HashWorkerError::from),
                 );
+                // let result = PasswordHash::new(&hashed_password)
+                //   .map_err(HashWorkerError::from)
+                //   .map(|parsed_hash| {
+                //       Scrypt.verify_password(password.as_bytes(), &parsed_hash)
+                //         .map(|_| true)
+                //         .unwrap_or(false)
+                //   });
+                // let _ = response.send(result);
               }
             };
           }

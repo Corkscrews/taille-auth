@@ -33,8 +33,8 @@ RUN apk add --no-cache \
 # Copy the built binary from the builder stage
 COPY --from=compiler /target/release/taille-auth /bin/taille-auth
 
-# Make the binary executable
-RUN chmod +x /bin/taille-auth
+# # Make the binary executable
+# RUN chmod +x /bin/taille-auth
 
 # Set the PORT environment variable (Railway sets this automatically)
 ENV PORT=3000
