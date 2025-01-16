@@ -30,7 +30,7 @@ use users::{
 };
 
 fn main() {
-  println!("Foo");
+  println!("Foo {}", 3 + 2);
 }
 
 // #[actix_web::main]

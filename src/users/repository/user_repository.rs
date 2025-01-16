@@ -1,26 +1,39 @@
+#[cfg(feature = "dynamo")]
 use aws_sdk_dynamodb::{
   error::SdkError,
   operation::{get_item::GetItemError, put_item::PutItemError},
   types::AttributeValue,
 };
+
+#[cfg(feature = "mongodb")]
 use mongodb::bson::{doc, to_document};
+
 use thiserror::Error;
 
 use crate::{
   shared::database::{
-    Database, DynamoDatabase, InMemoryDatabase, MongoDatabase,
+    Database, InMemoryDatabase
   },
   users::model::user::User,
 };
 
+#[cfg(feature = "dynamo")]
+use crate::shared::database::DynamoDatabase;
+
+#[cfg(feature = "mongodb")]
+use crate::shared::database::MongoDatabase;
+
 #[derive(Debug, Error)]
 pub enum UserRepositoryError {
+  #[cfg(feature = "dynamo")]
   #[error("Serialization error: {0}")]
   SerializationError(#[from] serde_dynamo::Error),
 
+  #[cfg(feature = "dynamo")]
   #[error("Get item error: {0}")]
   GetItemError(#[from] SdkError<GetItemError>),
 
+  #[cfg(feature = "dynamo")]
   #[error("Put item error: {0}")]
   PutItemError(#[from] SdkError<PutItemError>),
 
@@ -34,6 +47,7 @@ pub enum FindOneProperty<'a> {
 }
 
 impl FindOneProperty<'_> {
+  #[cfg(feature = "dynamo")]
   fn to_dynamo_key_value(&self) -> (&str, AttributeValue) {
     match self {
       FindOneProperty::Uuid(uuid) => {
@@ -44,6 +58,7 @@ impl FindOneProperty<'_> {
       }
     }
   }
+  #[cfg(feature = "mongodb")]
   fn to_mongo_key_value(&self) -> mongodb::bson::Document {
     match self {
       FindOneProperty::Uuid(uuid) => {
@@ -75,6 +90,7 @@ impl<DB: Database> UserRepositoryImpl<DB> {
   }
 }
 
+#[cfg(feature = "dynamo")]
 impl UserRepository for UserRepositoryImpl<DynamoDatabase> {
   async fn find_one<'a>(
     &self,
@@ -115,7 +131,7 @@ impl UserRepository for UserRepositoryImpl<DynamoDatabase> {
 }
 
 // ### MongoDB implementation ###
-
+#[cfg(feature = "mongodb")]
 impl UserRepository for UserRepositoryImpl<MongoDatabase> {
   async fn find_one<'a>(
     &self,
