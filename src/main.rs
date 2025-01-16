@@ -3,7 +3,10 @@ mod helpers;
 mod shared;
 mod users;
 
-use std::{cmp::max, sync::{Arc, LazyLock}};
+use std::{
+  cmp::max,
+  sync::{Arc, LazyLock},
+};
 
 use actix_governor::{
   governor::{clock::QuantaInstant, middleware::NoOpMiddleware},
@@ -15,7 +18,11 @@ use auth::{access_token, auth_login};
 use nanoid::nanoid;
 use rayon::ThreadPoolBuilder;
 use shared::{
-  check_health, config::Config, database::{Database, InMemoryDatabase}, hash_worker::{HashWorker, Hasher}, middleware::master_key_middleware::bearer_validator
+  check_health,
+  config::Config,
+  database::{Database, InMemoryDatabase},
+  hash_worker::{HashWorker, Hasher},
+  middleware::master_key_middleware::bearer_validator,
 };
 use users::{
   create_user, get_users,
@@ -26,9 +33,8 @@ use users::{
 async fn main() -> std::io::Result<()> {
   println!("Starting taille-auth...");
   let config = Config::default().await;
-  let user_repository = UserRepositoryImpl::new(
-    InMemoryDatabase::new(&config).await.unwrap()
-  );
+  let user_repository =
+    UserRepositoryImpl::new(InMemoryDatabase::new(&config).await.unwrap());
   let user_repository = Arc::new(user_repository);
 
   let thread_pool = ThreadPoolBuilder::new()
@@ -102,10 +108,7 @@ fn apply_service_config<UR: UserRepository + 'static, H: Hasher + 'static>(
             .route("", web::get().to(get_users::<UR>))
             .route("", web::post().to(create_user::<UR, H>)),
         )
-        .service(
-          web::scope("/health")
-            .route("", web::get().to(check_health))
-        )
+        .service(web::scope("/health").route("", web::get().to(check_health))),
     );
 }
 
@@ -114,7 +117,8 @@ fn num_threads() -> usize {
 }
 
 static CUSTOM_ALPHABET: LazyLock<Vec<char>> = LazyLock::new(|| {
-  nanoid::alphabet::SAFE.iter()
+  nanoid::alphabet::SAFE
+    .iter()
     .filter(|&&c| c != '_' && c != '-')
     .copied()
     .collect()
