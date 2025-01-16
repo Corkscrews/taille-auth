@@ -1,10 +1,10 @@
 # Use an official Rust image as the base image for building
-FROM rust:alpine3.20 AS compiler
+FROM rust:alpine3.20 AS builder
 
 # Set the working directory for the build
 WORKDIR /
 
-RUN apk add musl-dev
+RUN apk add build-base musl-dev openssl-dev
 
 # Copy the Cargo.toml and Cargo.lock files first (for dependency caching)
 COPY Cargo.toml Cargo.lock ./
@@ -22,19 +22,16 @@ COPY . .
 RUN cargo build --release
 
 # Use a lightweight image for the runtime
-FROM alpine:3.20
+FROM alpine:3.20 AS runner
 
 # Install required libraries for Rust binaries
-RUN apk add --no-cache \
-    libssl3 \
-    tini \
-    ca-certificates
+RUN apk add --no-cache build-base gcompat musl-dev openssl-dev libssl3 tini ca-certificates
 
 # Copy the built binary from the builder stage
-COPY --from=compiler /target/release/taille-auth /bin/taille-auth
+COPY --from=builder /target/release/taille-auth /bin/taille-auth
 
 # # Make the binary executable
-# RUN chmod +x /bin/taille-auth
+RUN chmod +x /bin/taille-auth
 
 # Set the PORT environment variable (Railway sets this automatically)
 ENV PORT=3000
@@ -42,6 +39,6 @@ ENV PORT=3000
 # Expose the port
 EXPOSE ${PORT}
 
-# Command to run the application
-ENTRYPOINT ["tini", "--"]
-CMD     /bin/taille-auth
+# Command to run the applicastion
+# ENTRYPOINT ["tini", "--"]
+CMD ["/bin/taille-auth"]
