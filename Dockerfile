@@ -44,4 +44,4 @@ EXPOSE ${PORT}
 
 # Command to run the application
 ENTRYPOINT ["tini", "--"]
-CMD ["/bin/taille-auth"]
+CMD     /bin/taille-auth
