@@ -29,55 +29,51 @@ use users::{
   repository::user_repository::{UserRepository, UserRepositoryImpl},
 };
 
-fn main() {
-  println!("Foo {}", 3 + 2);
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+  println!("Starting taille-auth...");
+  let config = Config::default().await;
+  let user_repository =
+    UserRepositoryImpl::new(InMemoryDatabase::new(&config).await.unwrap());
+  let user_repository = Arc::new(user_repository);
+
+  let thread_pool = ThreadPoolBuilder::new()
+    .num_threads(max(num_threads() - 2, 1))
+    .build()
+    .unwrap();
+  let hasher = Arc::new(HashWorker::new(thread_pool, 2));
+
+  // Rate limit
+  // Allow bursts with up to five requests per IP address
+  // and replenishes two elements per second
+  let governor_config = GovernorConfigBuilder::default()
+    .requests_per_second(2)
+    .burst_size(5)
+    .finish()
+    .unwrap();
+
+  let address = config.address.clone();
+
+  let config = Arc::new(config);
+
+  let http_server = HttpServer::new(move || {
+    App::new().configure(|cfg| {
+      apply_service_config(
+        cfg,
+        config.clone(),
+        &governor_config,
+        hasher.clone(),
+        user_repository.clone(),
+      )
+    })
+  })
+  .workers(2)
+  .bind(address.clone())?
+  .run();
+
+  println!("Listening on http://{}", address);
+  http_server.await
 }
-
-// #[actix_web::main]
-// async fn main() -> std::io::Result<()> {
-//   println!("Starting taille-auth...");
-//   let config = Config::default().await;
-//   let user_repository =
-//     UserRepositoryImpl::new(InMemoryDatabase::new(&config).await.unwrap());
-//   let user_repository = Arc::new(user_repository);
-
-//   let thread_pool = ThreadPoolBuilder::new()
-//     .num_threads(max(num_threads() - 2, 1))
-//     .build()
-//     .unwrap();
-//   let hasher = Arc::new(HashWorker::new(thread_pool, 2));
-
-//   // Rate limit
-//   // Allow bursts with up to five requests per IP address
-//   // and replenishes two elements per second
-//   let governor_config = GovernorConfigBuilder::default()
-//     .requests_per_second(2)
-//     .burst_size(5)
-//     .finish()
-//     .unwrap();
-
-//   let address = config.address.clone();
-
-//   let config = Arc::new(config);
-
-//   let http_server = HttpServer::new(move || {
-//     App::new().configure(|cfg| {
-//       apply_service_config(
-//         cfg,
-//         config.clone(),
-//         &governor_config,
-//         hasher.clone(),
-//         user_repository.clone(),
-//       )
-//     })
-//   })
-//   .workers(2)
-//   .bind(address.clone())?
-//   .run();
-
-//   println!("Listening on http://{}", address);
-//   http_server.await
-// }
 
 // Function to initialize the App
 fn apply_service_config<UR: UserRepository + 'static, H: Hasher + 'static>(

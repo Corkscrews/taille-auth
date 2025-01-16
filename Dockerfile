@@ -18,27 +18,30 @@ RUN cargo build --release
 # Now copy the full source code
 COPY . .
 
-# # Build the actual project in release mode
-# RUN cargo build --release
+# Remove cached build from dummy main.rs
+RUN rm -rf /target/release/taille-auth
 
-# # Use a lightweight image for the runtime
-# FROM rust:alpine3.20 AS runner
+# Build the actual project in release mode
+RUN cargo build --release
 
-# # Install required libraries for Rust binaries
-# RUN apk add --no-cache build-base musl-dev openssl-dev gcompat libssl3 libgcc libstdc++ tini ca-certificates
+# Use a lightweight image for the runtime
+FROM rust:alpine3.20 AS runner
 
-# # Copy the built binary from the builder stage
-# COPY --from=builder /target/release/taille-auth /bin/taille-auth
+# Install required libraries for Rust binaries
+RUN apk add --no-cache musl-dev openssl-dev libssl3 tini ca-certificates
 
-# # # Make the binary executable
-# RUN chmod +x /bin/taille-auth
+# Copy the built binary from the builder stage
+COPY --from=builder /target/release/taille-auth /bin/taille-auth
 
-# # Set the PORT environment variable (Railway sets this automatically)
-# ENV PORT=3000
+# # Make the binary executable
+RUN chmod +x /bin/taille-auth
 
-# # Expose the port
-# EXPOSE ${PORT}
+# Set the PORT environment variable (Railway sets this automatically)
+ENV PORT=3000
 
-# # Command to run the applicastion
-# ENTRYPOINT ["tini", "--"]
-# CMD ["/bin/taille-auth"]
+# Expose the port
+EXPOSE ${PORT}
+
+# Command to run the applicastion
+ENTRYPOINT ["tini", "--"]
+CMD ["/bin/taille-auth"]
