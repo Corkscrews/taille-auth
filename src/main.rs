@@ -20,10 +20,11 @@ use rayon::ThreadPoolBuilder;
 use shared::{
   check_health,
   config::Config,
-  database::{Database, InMemoryDatabase},
+  database::Database,
   hash_worker::{HashWorker, Hasher},
   middleware::master_key_middleware::bearer_validator,
 };
+
 use users::{
   create_user, get_users,
   repository::user_repository::{UserRepository, UserRepositoryImpl},
@@ -33,9 +34,8 @@ use users::{
 async fn main() -> std::io::Result<()> {
   println!("Starting taille-auth...");
   let config = Config::default().await;
-  let user_repository =
-    UserRepositoryImpl::new(InMemoryDatabase::new(&config).await.unwrap());
-  let user_repository = Arc::new(user_repository);
+
+  let user_repository = Arc::new(resolve_user_repository(&config).await);
 
   let thread_pool = ThreadPoolBuilder::new()
     .num_threads(max(num_threads() - 2, 1))
@@ -73,6 +73,28 @@ async fn main() -> std::io::Result<()> {
 
   println!("Listening on http://{}", address);
   http_server.await
+}
+
+// is not equivalent to this:
+#[cfg(feature = "dynamodb")]
+async fn resolve_user_repository(
+  config: &Config
+) -> UserRepositoryImpl<shared::database::DynamoDatabase> {
+  UserRepositoryImpl::new(shared::database::DynamoDatabase::new(&config).await.unwrap())
+}
+
+#[cfg(feature = "mongodb")]
+async fn resolve_user_repository(
+  config: &Config
+) -> UserRepositoryImpl<shared::database::MongoDatabase> {
+  UserRepositoryImpl::new(shared::database::MongoDatabase::new(&config).await.unwrap())
+}
+
+#[cfg(all(not(feature = "mongodb"), not(feature = "dynamodb")))]
+async fn resolve_user_repository(
+  config: &Config
+) -> UserRepositoryImpl<shared::database::InMemoryDatabase> {
+  UserRepositoryImpl::new(shared::database::InMemoryDatabase::new(&config).await.unwrap())
 }
 
 // Function to initialize the App

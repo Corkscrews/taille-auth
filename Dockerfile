@@ -53,12 +53,6 @@ COPY --from=builder /target/release/taille-auth /bin/taille-auth
 # # Make the binary executable
 RUN chmod +x /bin/taille-auth
 
-# Set the PORT environment variable (Railway sets this automatically)
-ENV PORT=3000
-
-# Expose the port
-EXPOSE ${PORT}
-
 # Command to run the applicastion
 ENTRYPOINT ["tini", "--"]
 CMD ["/bin/taille-auth"]

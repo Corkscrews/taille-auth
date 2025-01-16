@@ -36,5 +36,5 @@ reqwest = { version = "0.12.12", features = ["json"] }
 
 [features]
 default = []
-dynamo = ["dep:aws-config", "dep:aws-sdk-dynamodb", "dep:serde_dynamo"]
+dynamodb = ["dep:aws-config", "dep:aws-sdk-dynamodb", "dep:serde_dynamo"]
 mongodb = ["dep:mongodb"]

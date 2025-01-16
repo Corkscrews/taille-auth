@@ -8,12 +8,12 @@ pub trait Database: Sized {
   async fn new(config: &Config) -> Option<Self>;
 }
 
-#[cfg(feature = "dynamo")]
+#[cfg(feature = "dynamodb")]
 pub struct DynamoDatabase {
   pub client: Arc<aws_sdk_dynamodb::Client>,
 }
 
-#[cfg(feature = "dynamo")]
+#[cfg(feature = "dynamodb")]
 impl Database for DynamoDatabase {
   async fn new(_config: &Config) -> Option<Self> {
     let aws_config = aws_config::load_from_env().await;
