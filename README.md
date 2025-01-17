@@ -10,6 +10,8 @@ Welcome to **Taille-Auth**, the initial server responsible for allowing Irish ta
   - [Actix-Web](https://actix.rs/)  
 - **Database**:
   - [DynamoDB](https://aws.amazon.com/pm/dynamodb/)  
+  - [MongoDB](https://mongodb.com)  
+  - [InMemory(dev only)]()  
 - **Open Source**: The project remains open source to encourage community collaboration and transparency.
 
 ## Auth Flow
