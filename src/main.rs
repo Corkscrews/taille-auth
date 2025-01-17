@@ -31,7 +31,6 @@ use users::{
   repository::user_repository::{UserRepository, UserRepositoryImpl},
 };
 use utoipa_scalar::{Scalar, Servable};
-use utoipa_swagger_ui::SwaggerUi;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -95,10 +94,8 @@ fn apply_service_config<UR: UserRepository + 'static, H: Hasher + 'static>(
     .app_data(web::Data::from(config.clone()))
     .app_data(web::Data::from(user_repository))
     .app_data(web::Data::from(hasher))
-    .service(Scalar::with_url("/scalar", ApiDoc::openapi()))
-    .service(
-      SwaggerUi::new("/swagger-ui/{_:.*}")
-        .url("/api-docs/openapi.json", ApiDoc::openapi()),
+    .service(Scalar::with_url("/docs", ApiDoc::openapi())
+      .custom_html(std::fs::read_to_string("../static/scalar_docs.js").unwrap())
     )
     .service(
       web::scope("/v1")

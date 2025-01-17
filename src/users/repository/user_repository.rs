@@ -162,7 +162,7 @@ impl UserRepository for UserRepositoryImpl<MongoDatabase> {
   }
 }
 
-#[cfg(any(not(feature = "mongodb"), not(feature = "dynamodb"), test))]
+#[cfg(any(feature = "in-memory", test))]
 impl UserRepository
   for UserRepositoryImpl<crate::shared::database::InMemoryDatabase>
 {

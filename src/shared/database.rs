@@ -26,7 +26,7 @@ pub async fn resolve_database(
     .unwrap()
 }
 
-#[cfg(any(not(feature = "mongodb"), not(feature = "dynamodb"), test))]
+#[cfg(any(feature = "in-memory", test))]
 pub async fn resolve_database(
   config: &Config,
 ) -> crate::shared::database::InMemoryDatabase {
@@ -70,12 +70,12 @@ impl Database for MongoDatabase {
   }
 }
 
-#[cfg(any(not(feature = "mongodb"), not(feature = "dynamodb"), test))]
+#[cfg(any(feature = "in-memory", test))]
 pub struct InMemoryDatabase {
   pub users: Arc<RwLock<Vec<User>>>,
 }
 
-#[cfg(any(not(feature = "mongodb"), not(feature = "dynamodb"), test))]
+#[cfg(any(feature = "in-memory", test))]
 impl Database for InMemoryDatabase {
   async fn new(_config: &Config) -> Option<Self> {
     Some(Self {

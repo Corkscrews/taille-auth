@@ -88,6 +88,9 @@ impl HashWorker {
   }
 }
 
+use mockall::automock;
+
+#[automock]
 #[async_trait]
 pub trait Hasher {
   async fn hash_password(
