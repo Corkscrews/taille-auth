@@ -44,6 +44,13 @@ struct RefreshTokenClaims {
   exp: u64,
 }
 
+#[utoipa::path(
+  post,
+  path = "/auth/login",
+  responses(
+    (status = 200, description = "Authenticate based on email/password", body = LoginRto)
+  )
+)]
 pub async fn auth_login<UR: UserRepository, H: Hasher>(
   config: web::Data<Config>,
   user_repository: web::Data<UR>,
@@ -78,6 +85,13 @@ pub async fn auth_login<UR: UserRepository, H: Hasher>(
   generate_token_response(&config, user)
 }
 
+#[utoipa::path(
+  post,
+  path = "/auth/access-token",
+  responses(
+    (status = 200, description = "Generate a JWT pair", body = LoginRto)
+  )
+)]
 pub async fn access_token<UR: UserRepository + 'static, H: Hasher>(
   config: web::Data<Config>,
   user_repository: web::Data<UR>,

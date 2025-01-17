@@ -10,23 +10,29 @@ pub trait Database: Sized {
 
 #[cfg(feature = "dynamodb")]
 pub async fn resolve_database(
-  config: &Config
+  config: &Config,
 ) -> crate::shared::database::DynamoDatabase {
-  crate::shared::database::DynamoDatabase::new(&config).await.unwrap()
+  crate::shared::database::DynamoDatabase::new(&config)
+    .await
+    .unwrap()
 }
 
 #[cfg(feature = "mongodb")]
 pub async fn resolve_database(
-  config: &Config
+  config: &Config,
 ) -> crate::shared::database::MongoDatabase {
-  crate::shared::database::MongoDatabase::new(&config).await.unwrap()
+  crate::shared::database::MongoDatabase::new(&config)
+    .await
+    .unwrap()
 }
 
 #[cfg(any(not(feature = "mongodb"), not(feature = "dynamodb"), test))]
 pub async fn resolve_database(
-  config: &Config
+  config: &Config,
 ) -> crate::shared::database::InMemoryDatabase {
-  crate::shared::database::InMemoryDatabase::new(&config).await.unwrap()
+  crate::shared::database::InMemoryDatabase::new(config)
+    .await
+    .unwrap()
 }
 
 #[cfg(feature = "dynamodb")]

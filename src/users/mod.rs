@@ -23,7 +23,7 @@ use crate::users::repository::user_repository::{
   post,
   path = "/users",
   responses(
-      (status = 200, description = "List items", body = CreatedRto)
+    (status = 200, description = "Create a user", body = CreatedRto)
   )
 )]
 pub async fn create_user<UR: UserRepository, H: Hasher>(
@@ -70,6 +70,13 @@ pub async fn create_user<UR: UserRepository, H: Hasher>(
     })
 }
 
+#[utoipa::path(
+  get,
+  path = "/users",
+  responses(
+    (status = 200, description = "List users", body = FindUserRto)
+  )
+)]
 pub async fn get_users<UR: UserRepository>(
   user_repository: web::Data<UR>,
 ) -> impl Responder {

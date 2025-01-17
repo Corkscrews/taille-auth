@@ -14,7 +14,6 @@ use actix_governor::{
 };
 use actix_web::{web, App, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
-use auth::{access_token, auth_login};
 use nanoid::nanoid;
 use rayon::ThreadPoolBuilder;
 use shared::{
@@ -24,21 +23,22 @@ use shared::{
   hash_worker::{HashWorker, Hasher},
   middleware::master_key_middleware::bearer_validator,
 };
+use utoipa::OpenApi;
 
+use auth::{access_token, auth_login};
 use users::{
   create_user, get_users,
   repository::user_repository::{UserRepository, UserRepositoryImpl},
 };
-use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
   println!("Starting taille-auth...");
   let config = Config::default().await;
 
-  let user_repository = UserRepositoryImpl::new(
-    resolve_database(&config).await
-  );
+  let user_repository =
+    UserRepositoryImpl::new(resolve_database(&config).await);
   let user_repository = Arc::new(user_repository);
 
   let thread_pool = ThreadPoolBuilder::new()
@@ -76,7 +76,6 @@ async fn main() -> std::io::Result<()> {
   .run();
 
   println!("Listening on http://{}", address);
-  println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
   http_server.await
 }
 
@@ -97,6 +96,10 @@ fn apply_service_config<UR: UserRepository + 'static, H: Hasher + 'static>(
     .app_data(web::Data::from(hasher))
     .service(
       web::scope("/v1")
+      .service(
+          SwaggerUi::new("/swagger-ui/{_:.*}")
+            .url("/api-docs/openapi.json", ApiDoc::openapi()),
+        )
         .service(
           web::scope("/auth")
             .wrap(Governor::new(governor_config))
@@ -135,17 +138,13 @@ fn custom_nanoid() -> String {
 }
 
 #[derive(OpenApi)]
-#[openapi(
-  paths(
-    // tried this
-    // crate::auth::auth_login,
-    // crate::auth::access_token,
-    // also this :(
-    // crate::users::get_users::<crate::users::repository::user_repository::UserRepository>,
-    // crate::users::create_user::<crate::users::repository::user_repository::UserRepository, H>, 
-    crate::shared::check_health
-  )
-)]
+#[openapi(paths(
+  crate::auth::auth_login,
+  crate::auth::access_token,
+  crate::users::get_users,
+  crate::users::create_user,
+  crate::shared::check_health
+))]
 struct ApiDoc;
 
 #[cfg(test)]

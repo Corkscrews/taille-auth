@@ -10,10 +10,7 @@ use mongodb::bson::{doc, to_document};
 
 use thiserror::Error;
 
-use crate::{
-  shared::database::Database,
-  users::model::user::User,
-};
+use crate::{shared::database::Database, users::model::user::User};
 
 #[cfg(feature = "dynamodb")]
 use crate::shared::database::DynamoDatabase;
@@ -166,7 +163,9 @@ impl UserRepository for UserRepositoryImpl<MongoDatabase> {
 }
 
 #[cfg(any(not(feature = "mongodb"), not(feature = "dynamodb"), test))]
-impl UserRepository for UserRepositoryImpl<crate::shared::database::InMemoryDatabase> {
+impl UserRepository
+  for UserRepositoryImpl<crate::shared::database::InMemoryDatabase>
+{
   async fn find_one<'a>(
     &self,
     property: FindOneProperty<'a>,

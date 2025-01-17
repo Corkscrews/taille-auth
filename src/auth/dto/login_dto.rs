@@ -1,7 +1,8 @@
 use serde::Deserialize;
+use utoipa::ToSchema;
 use validator_derive::Validate;
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(ToSchema, Debug, Deserialize, Validate)]
 pub struct LoginDto {
   #[validate(length(
     min = 1,

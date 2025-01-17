@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(ToSchema, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LoginRto {
   #[serde(rename = "accessToken")]
   pub access_token: String,

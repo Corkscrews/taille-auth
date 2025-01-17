@@ -4,8 +4,7 @@ use validator_derive::Validate;
 
 use crate::shared::role::Role;
 
-#[derive(ToSchema)]
-#[derive(Debug, Clone, Deserialize, Validate)]
+#[derive(ToSchema, Debug, Clone, Deserialize, Validate)]
 pub struct CreateUserDto {
   #[validate(email)]
   pub email: String,
