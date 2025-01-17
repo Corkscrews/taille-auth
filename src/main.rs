@@ -95,7 +95,7 @@ fn apply_service_config<UR: UserRepository + 'static, H: Hasher + 'static>(
     .app_data(web::Data::from(user_repository))
     .app_data(web::Data::from(hasher))
     .service(Scalar::with_url("/docs", ApiDoc::openapi())
-      .custom_html(include_str!("../static/scalar_docs.js"))
+      // .custom_html(include_str!("../static/scalar_docs.js")) // Not in use
     )
     .service(
       web::scope("/v1")
