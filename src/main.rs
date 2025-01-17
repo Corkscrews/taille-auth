@@ -35,7 +35,8 @@ async fn main() -> std::io::Result<()> {
   println!("Starting taille-auth...");
   let config = Config::default().await;
 
-  let user_repository = Arc::new(resolve_user_repository(&config).await);
+  let user_repository = UserRepositoryImpl::new(resolve_database(&config).await);
+  let user_repository = Arc::new(user_repository);
 
   let thread_pool = ThreadPoolBuilder::new()
     .num_threads(max(num_threads() - 2, 1))
@@ -77,24 +78,24 @@ async fn main() -> std::io::Result<()> {
 
 // is not equivalent to this:
 #[cfg(feature = "dynamodb")]
-async fn resolve_user_repository(
+async fn resolve_database(
   config: &Config
-) -> UserRepositoryImpl<shared::database::DynamoDatabase> {
-  UserRepositoryImpl::new(shared::database::DynamoDatabase::new(&config).await.unwrap())
+) -> shared::database::DynamoDatabase {
+  shared::database::DynamoDatabase::new(&config).await.unwrap()
 }
 
 #[cfg(feature = "mongodb")]
-async fn resolve_user_repository(
+async fn resolve_database(
   config: &Config
-) -> UserRepositoryImpl<shared::database::MongoDatabase> {
-  UserRepositoryImpl::new(shared::database::MongoDatabase::new(&config).await.unwrap())
+) -> shared::database::MongoDatabase {
+  shared::database::MongoDatabase::new(&config).await.unwrap()
 }
 
 #[cfg(all(not(feature = "mongodb"), not(feature = "dynamodb")))]
-async fn resolve_user_repository(
+async fn resolve_database(
   config: &Config
-) -> UserRepositoryImpl<shared::database::InMemoryDatabase> {
-  UserRepositoryImpl::new(shared::database::InMemoryDatabase::new(&config).await.unwrap())
+) -> shared::database::InMemoryDatabase {
+  shared::database::InMemoryDatabase::new(&config).await.unwrap()
 }
 
 // Function to initialize the App
