@@ -1,4 +1,6 @@
-#[cfg(feature = "dynamodb")]
+use std::sync::Arc;
+
+#[cfg(all(feature = "dynamodb", not(test)))]
 use aws_sdk_dynamodb::{
   error::SdkError,
   operation::{get_item::GetItemError, put_item::PutItemError},
@@ -12,7 +14,7 @@ use thiserror::Error;
 
 use crate::{shared::database::Database, users::model::user::User};
 
-#[cfg(feature = "dynamodb")]
+#[cfg(all(feature = "dynamodb", not(test)))]
 use crate::shared::database::DynamoDatabase;
 
 #[cfg(feature = "mongodb")]
@@ -20,15 +22,15 @@ use crate::shared::database::MongoDatabase;
 
 #[derive(Debug, Error)]
 pub enum UserRepositoryError {
-  #[cfg(feature = "dynamodb")]
+  #[cfg(all(feature = "dynamodb", not(test)))]
   #[error("Serialization error: {0}")]
   SerializationError(#[from] serde_dynamo::Error),
 
-  #[cfg(feature = "dynamodb")]
+  #[cfg(all(feature = "dynamodb", not(test)))]
   #[error("Get item error: {0}")]
   GetItemError(#[from] SdkError<GetItemError>),
 
-  #[cfg(feature = "dynamodb")]
+  #[cfg(all(feature = "dynamodb", not(test)))]
   #[error("Put item error: {0}")]
   PutItemError(#[from] SdkError<PutItemError>),
 
@@ -42,7 +44,7 @@ pub enum FindOneProperty<'a> {
 }
 
 impl FindOneProperty<'_> {
-  #[cfg(feature = "dynamodb")]
+  #[cfg(all(feature = "dynamodb", not(test)))]
   fn to_dynamo_key_value(&self) -> (&str, AttributeValue) {
     match self {
       FindOneProperty::Uuid(uuid) => {
@@ -76,16 +78,16 @@ pub trait UserRepository {
 }
 
 pub struct UserRepositoryImpl<DB: Database> {
-  database: DB,
+  database: Arc<DB>,
 }
 
 impl<DB: Database> UserRepositoryImpl<DB> {
-  pub fn new(database: DB) -> Self {
+  pub fn new(database: Arc<DB>) -> Self {
     Self { database }
   }
 }
 
-#[cfg(feature = "dynamodb")]
+#[cfg(all(feature = "dynamodb", not(test)))]
 impl UserRepository for UserRepositoryImpl<DynamoDatabase> {
   async fn find_one<'a>(
     &self,

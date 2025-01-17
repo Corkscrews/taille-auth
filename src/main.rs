@@ -17,17 +17,18 @@ use actix_web_httpauth::middleware::HttpAuthentication;
 use nanoid::nanoid;
 use rayon::ThreadPoolBuilder;
 use shared::{
-  check_health,
   config::Config,
   database::resolve_database,
+  handlers::check_health,
   hash_worker::{HashWorker, Hasher},
+  health_check::{HealthCheck, HealthCheckImpl},
   middleware::master_key_middleware::bearer_validator,
 };
 use utoipa::OpenApi;
 
-use auth::{access_token, auth_login};
+use auth::handlers::{access_token, auth_login};
 use users::{
-  create_user, get_users,
+  handlers::{create_user, get_users},
   repository::user_repository::{UserRepository, UserRepositoryImpl},
 };
 use utoipa_scalar::{Scalar, Servable};
@@ -37,9 +38,8 @@ async fn main() -> std::io::Result<()> {
   println!("Starting taille-auth...");
   let config = Config::default().await;
 
-  let user_repository =
-    UserRepositoryImpl::new(resolve_database(&config).await);
-  let user_repository = Arc::new(user_repository);
+  let database = Arc::new(resolve_database(&config).await);
+  let health_check = Arc::new(HealthCheckImpl::new(database.clone()));
 
   let thread_pool = ThreadPoolBuilder::new()
     .num_threads(max(num_threads() - 2, 1))
@@ -64,10 +64,11 @@ async fn main() -> std::io::Result<()> {
     App::new().configure(|cfg| {
       apply_service_config(
         cfg,
-        config.clone(),
         &governor_config,
+        config.clone(),
+        health_check.clone(),
         hasher.clone(),
-        user_repository.clone(),
+        UserRepositoryImpl::new(database.clone())
       )
     })
   })
@@ -80,23 +81,27 @@ async fn main() -> std::io::Result<()> {
 }
 
 // Function to initialize the App
-fn apply_service_config<UR: UserRepository + 'static, H: Hasher + 'static>(
+fn apply_service_config<
+  UR: UserRepository + 'static,
+  HC: HealthCheck + 'static,
+  H: Hasher + 'static,
+>(
   service_config: &mut web::ServiceConfig,
-  config: Arc<Config>,
   governor_config: &GovernorConfig<
     PeerIpKeyExtractor,
     NoOpMiddleware<QuantaInstant>,
   >,
+  config: Arc<Config>,
+  health_check: Arc<HC>,
   hasher: Arc<H>,
-  user_repository: Arc<UR>,
+  user_repository: UR,
 ) {
   service_config
     .app_data(web::Data::from(config.clone()))
-    .app_data(web::Data::from(user_repository))
+    .app_data(web::Data::from(health_check.clone()))
+    .app_data(web::Data::new(user_repository))
     .app_data(web::Data::from(hasher))
-    .service(Scalar::with_url("/docs", ApiDoc::openapi())
-      // .custom_html(include_str!("../static/scalar_docs.js")) // Not in use
-    )
+    .service(Scalar::with_url("/docs", ApiDoc::openapi()))
     .service(
       web::scope("/v1")
         .service(
@@ -115,8 +120,10 @@ fn apply_service_config<UR: UserRepository + 'static, H: Hasher + 'static>(
             .route("", web::get().to(get_users::<UR>))
             .route("", web::post().to(create_user::<UR, H>)),
         )
-        .service(web::scope("/health").route("", web::get().to(check_health))),
-      );
+        .service(
+          web::scope("/health").route("", web::get().to(check_health::<HC>)),
+        ),
+    );
 }
 
 fn num_threads() -> usize {
@@ -138,11 +145,11 @@ fn custom_nanoid() -> String {
 
 #[derive(OpenApi)]
 #[openapi(paths(
-  crate::auth::auth_login,
-  crate::auth::access_token,
-  crate::users::get_users,
-  crate::users::create_user,
-  crate::shared::check_health
+  crate::auth::handlers::auth_login,
+  crate::auth::handlers::access_token,
+  crate::users::handlers::get_users,
+  crate::users::handlers::create_user,
+  crate::shared::handlers::check_health
 ))]
 struct ApiDoc;
 
@@ -170,20 +177,17 @@ mod tests {
     env::set_var("MASTER_KEY", &master_key);
     env::set_var("JWT_SECRET", "FAKE_JWT_SECRET");
 
-    let config = Config::default().await;
-    let config = Arc::new(config);
-
-    let user_repository =
-      Arc::new(UserRepositoryImpl::<InMemoryDatabase>::new(
-        InMemoryDatabase::new(&config).await.unwrap(),
-      ));
+    let config = Arc::new(Config::default().await);
+    let database = Arc::new(InMemoryDatabase::new(&config).await.unwrap());
+    let health_check = Arc::new(HealthCheckImpl::new(database.clone()));
 
     // Initialize the service in-memory
     let app = test::init_service(App::new().configure(|cfg| {
       apply_service_config(
         cfg,
-        config,
         &GovernorConfigBuilder::default().finish().unwrap(),
+        config,
+        health_check,
         Arc::new(HashWorker::new(
           ThreadPoolBuilder::new()
             .num_threads(max(num_threads() - 2, 1))
@@ -191,7 +195,7 @@ mod tests {
             .unwrap(),
           2,
         )),
-        user_repository,
+        UserRepositoryImpl::new(database.clone()),
       )
     }))
     .await;

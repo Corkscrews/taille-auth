@@ -39,7 +39,7 @@ once_cell = "1.20.2"
 reqwest = { version = "0.12.12", features = ["json"] }
 
 [features]
-default = ["in-memory"]
+default = ["mongodb"]
 dynamodb = ["dep:aws-config", "dep:aws-sdk-dynamodb", "dep:serde_dynamo"]
 mongodb = ["dep:mongodb"]
 in-memory = []
