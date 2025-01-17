@@ -9,6 +9,27 @@ pub trait Database: Sized {
 }
 
 #[cfg(feature = "dynamodb")]
+pub async fn resolve_database(
+  config: &Config
+) -> crate::shared::database::DynamoDatabase {
+  crate::shared::database::DynamoDatabase::new(&config).await.unwrap()
+}
+
+#[cfg(feature = "mongodb")]
+pub async fn resolve_database(
+  config: &Config
+) -> crate::shared::database::MongoDatabase {
+  crate::shared::database::MongoDatabase::new(&config).await.unwrap()
+}
+
+#[cfg(all(not(feature = "mongodb"), not(feature = "dynamodb")))]
+pub async fn resolve_database(
+  config: &Config
+) -> crate::shared::database::InMemoryDatabase {
+  crate::shared::database::InMemoryDatabase::new(&config).await.unwrap()
+}
+
+#[cfg(feature = "dynamodb")]
 pub struct DynamoDatabase {
   pub client: Arc<aws_sdk_dynamodb::Client>,
 }
