@@ -3,7 +3,7 @@ FROM rust:alpine3.20 AS planner
 
 WORKDIR /
 
-RUN apk add build-base musl-dev openssl-dev
+RUN apk add build-base musl-dev openssl-dev curl
 
 # Install cargo chef dependency.
 RUN cargo install cargo-chef
@@ -19,7 +19,7 @@ FROM rust:alpine3.20 AS builder
 # Set the working directory for the build
 WORKDIR /
 
-RUN apk add build-base musl-dev openssl-dev
+RUN apk add build-base musl-dev openssl-dev curl
 
 RUN cargo install cargo-chef
 
