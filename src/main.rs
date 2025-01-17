@@ -30,6 +30,7 @@ use users::{
   create_user, get_users,
   repository::user_repository::{UserRepository, UserRepositoryImpl},
 };
+use utoipa_scalar::{Scalar, Servable};
 use utoipa_swagger_ui::SwaggerUi;
 
 #[actix_web::main]
@@ -96,6 +97,7 @@ fn apply_service_config<UR: UserRepository + 'static, H: Hasher + 'static>(
     .app_data(web::Data::from(hasher))
     .service(
       web::scope("/v1")
+      .service(Scalar::with_url("/scalar", ApiDoc::openapi()))
       .service(
           SwaggerUi::new("/swagger-ui/{_:.*}")
             .url("/api-docs/openapi.json", ApiDoc::openapi()),
