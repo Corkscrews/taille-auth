@@ -19,6 +19,13 @@ use crate::users::repository::user_repository::{
   FindOneProperty, UserRepository,
 };
 
+#[utoipa::path(
+  post,
+  path = "/users",
+  responses(
+      (status = 200, description = "List items", body = CreatedRto)
+  )
+)]
 pub async fn create_user<UR: UserRepository, H: Hasher>(
   user_repository: web::Data<UR>,
   hasher: web::Data<H>,

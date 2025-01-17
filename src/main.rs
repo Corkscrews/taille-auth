@@ -20,7 +20,7 @@ use rayon::ThreadPoolBuilder;
 use shared::{
   check_health,
   config::Config,
-  database::{resolve_database, Database},
+  database::resolve_database,
   hash_worker::{HashWorker, Hasher},
   middleware::master_key_middleware::bearer_validator,
 };
@@ -29,6 +29,7 @@ use users::{
   create_user, get_users,
   repository::user_repository::{UserRepository, UserRepositoryImpl},
 };
+use utoipa::OpenApi;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -75,6 +76,7 @@ async fn main() -> std::io::Result<()> {
   .run();
 
   println!("Listening on http://{}", address);
+  println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
   http_server.await
 }
 
@@ -132,6 +134,20 @@ fn custom_nanoid() -> String {
   nanoid!(21, &*CUSTOM_ALPHABET)
 }
 
+#[derive(OpenApi)]
+#[openapi(
+  paths(
+    // tried this
+    // crate::auth::auth_login,
+    // crate::auth::access_token,
+    // also this :(
+    // crate::users::get_users::<crate::users::repository::user_repository::UserRepository>,
+    // crate::users::create_user::<crate::users::repository::user_repository::UserRepository, H>, 
+    crate::shared::check_health
+  )
+)]
+struct ApiDoc;
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -146,7 +162,7 @@ mod tests {
     locales::EN,
     Fake,
   };
-  use shared::database::InMemoryDatabase;
+  use shared::database::{Database, InMemoryDatabase};
   use std::{env, net::SocketAddr, str::FromStr, time::Duration};
   use users::repository::user_repository::UserRepositoryImpl;
 

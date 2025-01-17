@@ -11,9 +11,7 @@ use mongodb::bson::{doc, to_document};
 use thiserror::Error;
 
 use crate::{
-  shared::database::{
-    Database, InMemoryDatabase
-  },
+  shared::database::Database,
   users::model::user::User,
 };
 
@@ -167,7 +165,8 @@ impl UserRepository for UserRepositoryImpl<MongoDatabase> {
   }
 }
 
-impl UserRepository for UserRepositoryImpl<InMemoryDatabase> {
+#[cfg(any(not(feature = "mongodb"), not(feature = "dynamodb"), test))]
+impl UserRepository for UserRepositoryImpl<crate::shared::database::InMemoryDatabase> {
   async fn find_one<'a>(
     &self,
     property: FindOneProperty<'a>,
